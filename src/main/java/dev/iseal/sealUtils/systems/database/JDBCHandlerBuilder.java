@@ -1,6 +1,7 @@
 package dev.iseal.sealUtils.systems.database;
 
 import java.io.File;
+import java.util.logging.Logger;
 
 /**
  * Builder for creating file-based database connections with JDBCHandler.
@@ -12,6 +13,7 @@ public class JDBCHandlerBuilder {
     private String filePath;
     private String username;
     private String password;
+    private Logger logger;
     private boolean createIfNotExists;
 
     public JDBCHandlerBuilder() {
@@ -19,12 +21,23 @@ public class JDBCHandlerBuilder {
         this.username = "";
         this.password = "";
         this.createIfNotExists = true;
+        this.logger = Logger.getLogger(JDBCHandler.class.getName());
+    }
+
+    /**
+     * Sets the logger for this builder, and for the handler.
+     * @param logger Logger instance
+     * @return This builder
+     */
+    public JDBCHandlerBuilder setLogger(Logger logger) {
+        this.logger = logger;
+        return this;
     }
 
     /**
      *
      * Sets the database type.
-     * @param dbType The database type (sqlite, h2, hsqldb, derby)
+     * @param dbType The database type (sqlite, h2, hsqldb, mysql, postgresql)
      * @return This builder
      */
     public JDBCHandlerBuilder withDatabaseType(String dbType) {
@@ -93,7 +106,7 @@ public class JDBCHandlerBuilder {
      * @return An initialized JDBCHandler
      */
     public JDBCHandler build() {
-        JDBCHandler handler = new JDBCHandler();
+        JDBCHandler handler = new JDBCHandler(logger);
         handler.init(buildJdbcUrl(), username, password);
         return handler;
     }
