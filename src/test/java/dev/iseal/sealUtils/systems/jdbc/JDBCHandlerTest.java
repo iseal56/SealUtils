@@ -3,6 +3,7 @@ package dev.iseal.sealUtils.systems.jdbc;
 import dev.iseal.sealUtils.systems.database.JDBCHandler;
 import dev.iseal.sealUtils.systems.database.JDBCHandlerBuilder;
 import dev.iseal.sealUtils.utils.ExceptionHandler;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,32 @@ public class JDBCHandlerTest {
 
     private static String dbPath = System.getProperty("user.dir") + "/tests/jdbc/test";
     private static Path dbDirPath = Paths.get(System.getProperty("user.dir") + "/tests/jdbc");
+
+    @AfterAll
+    static void tearDown() {
+        // delete old db file and directory
+        if (Files.exists(dbDirPath)) {
+            System.out.println("Deleting old db dir and recreating it: " + dbDirPath);
+            try {
+                Files.walkFileTree(dbDirPath, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        Files.delete(file);
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                        Files.delete(dir);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            } catch (IOException e) {
+                ExceptionHandler.getInstance().dealWithException(e, Level.SEVERE, "FAILED_TO_DELETE_DB_DIR");
+                fail("Failed to delete old db dir: " + e.getMessage());
+            }
+        }
+    }
 
     @BeforeEach
     void setup() {
