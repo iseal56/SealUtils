@@ -13,12 +13,20 @@ import java.util.logging.Logger;
  * Provides functionality for database management, table operations, and CRUD operations.
  */
 public class JDBCHandler {
-  private static final Logger LOGGER = Logger.getLogger(JDBCHandler.class.getName());
+  private final Logger LOGGER;
 
   private String jdbcUrl;
   private String username;
   private String password;
   private Connection connection;
+
+  /**
+   * Constructor for JDBCHandler. Protected to enforce use of {@link JDBCHandlerBuilder}.
+   * @param log Logger to use for logging operations
+   */
+  protected JDBCHandler(Logger log) {
+    this.LOGGER = log;
+  }
 
   /**
    * Initializes the JDBC handler with database credentials.
