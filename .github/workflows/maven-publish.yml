@@ -1,24 +1,34 @@
 name: Build and Release
 
 on:
-  push:
-    branches: [ master ]
+  workflow_run:
+    workflows: ["Code Quality Check"] # This must match the 'name' in code-quality.yml
+    types:
+      - completed
+    branches: [master] # Only trigger for runs on the master branch
 
 jobs:
   build-and-release:
+    # This condition ensures the job only runs if the triggering workflow was successful
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
 
     steps:
+      # Checkout the specific commit that triggered the 'Code Quality Check' workflow
       - uses: actions/checkout@v3
+        with:
+          # GITHUB_SHA from the workflow_run event is the commit that triggered the 'Code Quality Check'
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Set up Java environment
         uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: temurin
+          cache: maven
 
       - name: Set env variables
         run: |
@@ -28,6 +38,8 @@ jobs:
 
       - name: Check if release exists
         id: check_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view "v${{ env.VERSION }}" > /dev/null 2>&1; then
             echo "RELEASE_EXISTS=true" >> $GITHUB_ENV
@@ -48,15 +60,16 @@ jobs:
         uses: ncipollo/release-action@v1
         id: preRelease
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           name: "v${{ env.VERSION }}"
           artifacts: "target/output/*.jar"
-          commit: ${{ github.sha }}
-          tag: "${{ env.VERSION }}-${{ github.sha }}"
+          commit: ${{ github.event.workflow_run.head_sha }} # Use the commit from the workflow_run
+          tag: "${{ env.VERSION }}-${{ github.event.workflow_run.head_sha }}"
           draft: false
           prerelease: true
           body: |
-            This release is automatically generated from commit ${{ github.sha }} and corresponds to version ${{ env.VERSION }} from pom.xml.
-            Changelog for this version: ${{ github.event.head_commit.message }}
+            This release is automatically generated from commit ${{ github.event.workflow_run.head_sha }} and corresponds to version ${{ env.VERSION }} from pom.xml.
+            Changelog for this version: ${{ github.event.workflow_run.head_commit.message }}
             !! THIS IS A PRERELEASE AND NOT FINAL !!
 
       - name: Create release final
@@ -64,12 +77,13 @@ jobs:
         uses: ncipollo/release-action@v1
         id: finalRelease
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           name: "v${{ env.VERSION }}"
           artifacts: "target/output/*.jar"
-          commit: ${{ github.sha }}
+          commit: ${{ github.event.workflow_run.head_sha }} # Use the commit from the workflow_run
           tag: ${{ env.VERSION }}
           draft: false
           prerelease: false
           body: |
-            This release is automatically generated from commit ${{ github.sha }} and corresponds to version ${{ env.VERSION }} from pom.xml.
-            Changelog for this version: ${{ github.event.head_commit.message }}
+            This release is automatically generated from commit ${{ github.event.workflow_run.head_sha }} and corresponds to version ${{ env.VERSION }} from pom.xml.
+            Changelog for this version: ${{ github.event.workflow_run.head_commit.message }}
