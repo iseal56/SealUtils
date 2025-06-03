@@ -13,25 +13,15 @@ public class JDBCHandlerBuilder {
     private String filePath;
     private String username;
     private String password;
-    private Logger logger;
     private boolean createIfNotExists;
+    private boolean strictMode;
 
     public JDBCHandlerBuilder() {
         this.dbType = "h2"; // Default to H2
         this.username = "";
         this.password = "";
         this.createIfNotExists = true;
-        this.logger = Logger.getLogger(JDBCHandler.class.getName());
-    }
-
-    /**
-     * Sets the logger for this builder, and for the handler.
-     * @param logger Logger instance
-     * @return This builder
-     */
-    public JDBCHandlerBuilder setLogger(Logger logger) {
-        this.logger = logger;
-        return this;
+        this.strictMode = false;
     }
 
     /**
@@ -79,6 +69,16 @@ public class JDBCHandlerBuilder {
     }
 
     /**
+     * Sets strict mode for database operations.
+     * @param strict Whether to enable strict mode
+     * @return This builder
+     */
+    public JDBCHandlerBuilder strictMode(boolean strict) {
+        this.strictMode = strict;
+        return this;
+    }
+
+    /**
      * Builds the JDBC URL based on configuration.
      * @return Properly formatted JDBC URL
      */
@@ -106,7 +106,7 @@ public class JDBCHandlerBuilder {
      * @return An initialized JDBCHandler
      */
     public JDBCHandler build() {
-        JDBCHandler handler = new JDBCHandler(logger);
+        JDBCHandler handler = new JDBCHandler(strictMode);
         handler.init(buildJdbcUrl(), username, password);
         return handler;
     }

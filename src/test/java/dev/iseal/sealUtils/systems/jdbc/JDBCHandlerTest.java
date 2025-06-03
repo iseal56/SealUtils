@@ -156,7 +156,7 @@ public class JDBCHandlerTest {
                 .isEqualTo("Test");
 
         // Test querying specific columns
-        List<Map<String, Object>> nameOnlyResults = handler.queryRecords("test_table", new String[]{"name"}, null);
+        List<Map<String, Object>> nameOnlyResults = handler.queryRecords("test_table", new String[]{"NAME"}, null);
         assertThat(nameOnlyResults)
                 .isNotNull();
 

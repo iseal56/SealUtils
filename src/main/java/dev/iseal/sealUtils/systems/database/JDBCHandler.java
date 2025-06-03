@@ -1,5 +1,7 @@
 package dev.iseal.sealUtils.systems.database;
 
+import dev.iseal.sealUtils.SealUtils;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,13 +21,15 @@ public class JDBCHandler {
   private String username;
   private String password;
   private Connection connection;
+  private boolean strictMode;
 
   /**
    * Constructor for JDBCHandler. Protected to enforce use of {@link JDBCHandlerBuilder}.
-   * @param log Logger to use for logging operations
+   * @param strictMode Whether to enable strict mode for error handling
    */
-  protected JDBCHandler(Logger log) {
-    this.LOGGER = log;
+  protected JDBCHandler(boolean strictMode) {
+    this.LOGGER = SealUtils.getLogger();
+    this.strictMode = strictMode;
   }
 
   /**
@@ -60,24 +64,30 @@ public class JDBCHandler {
       connection = DriverManager.getConnection(jdbcUrl, username, password);
       return true;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to connect to database", e);
+      if (strictMode)
+        throw new RuntimeException("Failed to connect to database: " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.WARNING, "Failed to connect to database: " + e.getMessage());
       return false;
     }
   }
 
-    /**
-     * Checks if the database connection is currently established and valid.
-     *
-     * @return true if connected to the database, false otherwise
-     */
-    public boolean isConnected() {
-        try {
-            return connection != null && !connection.isClosed();
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error checking connection status", e);
-            return false;
-        }
+  /**
+   * Checks if the database connection is currently established and valid.
+   *
+   * @return true if connected to the database, false otherwise
+   */
+  public boolean isConnected() {
+    try {
+      return connection != null && !connection.isClosed();
+    } catch (SQLException e) {
+      if (strictMode)
+        throw new RuntimeException("Error checking connection status: " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Error checking connection status", e);
+      return false;
     }
+  }
 
   /**
    * Closes the database connection.
@@ -91,7 +101,10 @@ public class JDBCHandler {
       }
       return true;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to close database connection", e);
+      if (strictMode)
+        throw new RuntimeException("Failed to close database connection: " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to close database connection", e);
       return false;
     }
   }
@@ -109,7 +122,10 @@ public class JDBCHandler {
       LOGGER.info("Database created successfully: " + databaseName);
       return true;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to create database: " + databaseName, e);
+      if (strictMode)
+        throw new RuntimeException("Failed to create database: " + databaseName + ": " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to create database: " + databaseName, e);
       return false;
     }
   }
@@ -127,7 +143,10 @@ public class JDBCHandler {
       LOGGER.info("Database deleted successfully: " + databaseName);
       return true;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to delete database: " + databaseName, e);
+      if (strictMode)
+        throw new RuntimeException("Failed to delete database: " + databaseName + ": " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to delete database: " + databaseName, e);
       return false;
     }
   }
@@ -147,7 +166,7 @@ public class JDBCHandler {
       if (!first) {
         sql.append(", ");
       }
-      sql.append(column.getKey()).append(" ").append(column.getValue());
+      sql.append("\"").append(column.getKey()).append("\"").append(" ").append(column.getValue()); // Quote column name
       first = false;
     }
 
@@ -158,7 +177,10 @@ public class JDBCHandler {
       LOGGER.info("Table created successfully: " + tableName);
       return true;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to create table: " + tableName, e);
+      if (strictMode)
+        throw new RuntimeException("Failed to create table: " + tableName + ": " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to create table: " + tableName, e);
       return false;
     }
   }
@@ -171,25 +193,30 @@ public class JDBCHandler {
    * @return true if insertion is successful, false otherwise
    */
   public boolean insertRecord(String tableName, Map<String, Object> values) {
-    StringBuilder columns = new StringBuilder();
+    StringBuilder columnsBuilder = new StringBuilder();
     StringBuilder placeholders = new StringBuilder();
     List<Object> paramValues = new ArrayList<>();
 
     boolean first = true;
     for (Map.Entry<String, Object> entry : values.entrySet()) {
       if (!first) {
-        columns.append(", ");
+        columnsBuilder.append(", ");
         placeholders.append(", ");
       }
-      columns.append(entry.getKey());
+      // Quote column names to handle reserved keywords or special characters
+      columnsBuilder.append("\"").append(entry.getKey()).append("\"");
       placeholders.append("?");
       paramValues.add(entry.getValue());
       first = false;
     }
-    tableName = tableName.replaceAll("\\s+", " ");
-    tableName = tableName.replaceAll("\"", "");
 
-    String sql = "INSERT INTO " + tableName + " (" + columns + ") VALUES (" + placeholders + ")";
+    // It's generally safer to quote table names as well,
+    // but the original sanitization is kept here.
+    // Consider replacing with `String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";`
+    // if table names can also be keywords or contain special characters.
+    String sanitizedTableName = tableName.replaceAll("\\s+", "_").replaceAll("\"", ""); // Basic sanitization
+
+    String sql = "INSERT INTO " + sanitizedTableName + " (" + columnsBuilder.toString() + ") VALUES (" + placeholders.toString() + ")";
 
     try (PreparedStatement statement = connection.prepareStatement(sql)) {
       for (int i = 0; i < paramValues.size(); i++) {
@@ -199,7 +226,10 @@ public class JDBCHandler {
       int rowsAffected = statement.executeUpdate();
       return rowsAffected > 0;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to insert record into table: " + tableName, e);
+      if (strictMode)
+        throw new RuntimeException("Failed to insert record into table: " + tableName + ": " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to insert record into table: " + tableName + " with SQL: " + sql, e);
       return false;
     }
   }
@@ -216,12 +246,24 @@ public class JDBCHandler {
   public List<Map<String, Object>> queryRecords(String tableName, String[] columns, String condition, Object... params) {
     String columnStr = "*";
     if (columns != null && columns.length > 0) {
-      columnStr = String.join(", ", columns);
+      // Quote column names if they are specified
+      StringBuilder quotedColumns = new StringBuilder();
+      for (int i = 0; i < columns.length; i++) {
+        quotedColumns.append("\"").append(columns[i]).append("\"");
+        if (i < columns.length - 1) {
+          quotedColumns.append(", ");
+        }
+      }
+      columnStr = quotedColumns.toString();
     }
 
+    // Consider quoting table name: String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";
     String sql = "SELECT " + columnStr + " FROM " + tableName;
 
+
     if (condition != null && !condition.isEmpty()) {
+      // Note: Column names within the 'condition' string are not automatically quoted here.
+      // The caller must ensure 'condition' is safe and correctly formatted.
       sql += " WHERE " + condition;
     }
 
@@ -240,7 +282,7 @@ public class JDBCHandler {
           Map<String, Object> row = new HashMap<>();
 
           for (int i = 1; i <= columnCount; i++) {
-            String columnName = metaData.getColumnName(i);
+            String columnName = metaData.getColumnName(i); // Already correct from DB
             Object value = resultSet.getObject(i);
             row.put(columnName, value);
           }
@@ -249,10 +291,43 @@ public class JDBCHandler {
         }
       }
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to query records from table: " + tableName, e);
+      if (strictMode)
+        throw new RuntimeException("Failed to query records from table: " + tableName + ": " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to query records from table: " + tableName, e);
     }
 
     return results;
+  }
+
+  /**
+   * Queries records from a table using a map for conditions.
+   *
+   * @param tableName The name of the table
+   * @param conditions A map of column names and their values for WHERE conditions
+   * @return A list of maps representing the query results
+   */
+  public List<Map<String, Object>> queryRecords(String tableName, Map<String, Object> conditions) {
+    if (conditions == null || conditions.isEmpty()) {
+      // No conditions, return all records
+      return queryRecords(tableName, null, null);
+    }
+
+    StringBuilder conditionBuilder = new StringBuilder();
+    List<Object> params = new ArrayList<>();
+
+    boolean first = true;
+    for (Map.Entry<String, Object> entry : conditions.entrySet()) {
+      if (!first) {
+        conditionBuilder.append(" AND ");
+      }
+      // Quote column names in conditions
+      conditionBuilder.append("\"").append(entry.getKey()).append("\"").append(" = ?");
+      params.add(entry.getValue());
+      first = false;
+    }
+
+    return queryRecords(tableName, null, conditionBuilder.toString(), params.toArray());
   }
 
   /**
@@ -313,14 +388,19 @@ public class JDBCHandler {
       if (!first) {
         setClause.append(", ");
       }
-      setClause.append(entry.getKey()).append(" = ?");
+      // Quote column names in SET clause
+      setClause.append("\"").append(entry.getKey()).append("\"").append(" = ?");
       paramValues.add(entry.getValue());
       first = false;
     }
 
+    // Consider quoting table name: String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";
     String sql = "UPDATE " + tableName + " SET " + setClause;
 
+
     if (condition != null && !condition.isEmpty()) {
+      // Note: Column names within the 'condition' string are not automatically quoted here.
+      // The caller must ensure 'condition' is safe and correctly formatted.
       sql += " WHERE " + condition;
     }
 
@@ -338,7 +418,10 @@ public class JDBCHandler {
       int rowsAffected = statement.executeUpdate();
       return rowsAffected > 0;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to update records in table: " + tableName, e);
+      if (strictMode)
+        throw new RuntimeException("Failed to update records in table: " + tableName + ": " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to update records in table: " + tableName, e);
       return false;
     }
   }
@@ -352,9 +435,12 @@ public class JDBCHandler {
    * @return true if deletion is successful, false otherwise
    */
   public boolean deleteRecords(String tableName, String condition, Object... params) {
+    // Consider quoting table name: String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";
     String sql = "DELETE FROM " + tableName;
 
     if (condition != null && !condition.isEmpty()) {
+      // Note: Column names within the 'condition' string are not automatically quoted here.
+      // The caller must ensure 'condition' is safe and correctly formatted.
       sql += " WHERE " + condition;
     }
 
@@ -366,7 +452,10 @@ public class JDBCHandler {
       int rowsAffected = statement.executeUpdate();
       return rowsAffected > 0;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to delete records from table: " + tableName, e);
+      if (strictMode)
+        throw new RuntimeException("Failed to delete records from table: " + tableName + ": " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to delete records from table: " + tableName, e);
       return false;
     }
   }
@@ -381,7 +470,10 @@ public class JDBCHandler {
       connection.setAutoCommit(false);
       return true;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to begin transaction", e);
+      if (strictMode)
+        throw new RuntimeException("Failed to begin transaction: " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to begin transaction", e);
       return false;
     }
   }
@@ -397,7 +489,10 @@ public class JDBCHandler {
       connection.setAutoCommit(true);
       return true;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to commit transaction", e);
+      if (strictMode)
+        throw new RuntimeException("Failed to commit transaction: " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to commit transaction", e);
       return false;
     }
   }
@@ -413,7 +508,10 @@ public class JDBCHandler {
       connection.setAutoCommit(true);
       return true;
     } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to rollback transaction", e);
+      if (strictMode)
+        throw new RuntimeException("Failed to rollback transaction: " + e.getMessage(), e);
+      else
+        LOGGER.log(Level.SEVERE, "Failed to rollback transaction", e);
       return false;
     }
   }
