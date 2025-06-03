@@ -1,6 +1,5 @@
 package dev.iseal.sealUtils.systems.database;
 
-import java.net.URL;
 import java.sql.Blob;
 import java.sql.Clob;
 import java.util.Map;

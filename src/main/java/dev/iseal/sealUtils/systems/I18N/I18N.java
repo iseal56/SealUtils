@@ -147,7 +147,7 @@ public class I18N implements Dumpable {
         }
     }
 
-    private static String getTranslation(String key) {
+    public static String getTranslation(String key) {
         try {
             String translation = selectedBundles.get(StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
                             .getCallerClass().getPackageName().split("\\.")[2])
@@ -203,7 +203,7 @@ public class I18N implements Dumpable {
         }
     }
 
-    private static String getTranslation(Class<?> clazz, String key) {
+    public static String getTranslation(Class<?> clazz, String key) {
         try {
             String translation = selectedBundles.get(clazz.getPackageName().split("\\.")[2])
                     .getString(key);

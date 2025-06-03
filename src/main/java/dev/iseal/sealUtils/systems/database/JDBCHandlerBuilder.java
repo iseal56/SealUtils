@@ -1,7 +1,6 @@
 package dev.iseal.sealUtils.systems.database;
 
 import java.io.File;
-import java.util.logging.Logger;
 
 /**
  * Builder for creating file-based database connections with JDBCHandler.
