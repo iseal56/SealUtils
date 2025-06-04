@@ -5,6 +5,9 @@ on:
     workflows: [ "Code Quality Check" ]
     types:
       - completed
+    branches: [master]
+
+    workflow_dispatch: # Allows this action to be triggered manually
 
 jobs:
   build-and-release:
