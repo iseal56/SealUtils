@@ -7,7 +7,7 @@ on:
 jobs:
   build-and-release:
     # This condition ensures the job only runs if the triggering workflow was 
-    if: [code-quality]
+    needs: [code-quality]
     runs-on: ubuntu-latest
     permissions:
       contents: write
