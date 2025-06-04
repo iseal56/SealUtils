@@ -74,7 +74,7 @@ public class JDBCHelperTest {
             for (Map.Entry<Class<?>, String> entry : typeMappings.entrySet()) {
                 Class<?> javaType = entry.getKey();
                 String sqlType = entry.getValue();
-                String tableName = "TEST_" + javaType.getSimpleName().toUpperCase().replace("[", "").replace("]", "");
+                String tableName = "TEST_" + javaType.getSimpleName().toUpperCase().replace("[", "_").replace("]", "_");
 
                 try {
                     assertTrue(handler.createTable(tableName, Map.of("id", "INTEGER", "value", sqlType)));
