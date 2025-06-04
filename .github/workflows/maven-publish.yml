@@ -1,23 +1,23 @@
 name: Build and Release
 
 on:
-  push:
-    branches: [ master ]
+  workflow_run:
+    workflows: [ "Code Quality Check" ]
+    types:
+      - completed
 
 jobs:
   build-and-release:
-    # This condition ensures the job only runs if the triggering workflow was 
-    needs: [code-quality]
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'master' }}
+    needs: []
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
 
     steps:
-      # Checkout the specific commit that triggered the 'Code Quality Check' workflow
       - uses: actions/checkout@v3
         with:
-          # GITHUB_SHA from the workflow_run event is the commit that triggered the 'Code Quality Check'
           ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Set up Java environment
@@ -60,7 +60,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: "v${{ env.VERSION }}"
           artifacts: "target/output/*.jar"
-          commit: ${{ github.event.workflow_run.head_sha }} # Use the commit from the workflow_run
+          commit: ${{ github.event.workflow_run.head_sha }}
           tag: "${{ env.VERSION }}-${{ github.event.workflow_run.head_sha }}"
           draft: false
           prerelease: true
@@ -77,7 +77,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: "v${{ env.VERSION }}"
           artifacts: "target/output/*.jar"
-          commit: ${{ github.event.workflow_run.head_sha }} # Use the commit from the workflow_run
+          commit: ${{ github.event.workflow_run.head_sha }}
           tag: ${{ env.VERSION }}
           draft: false
           prerelease: false
