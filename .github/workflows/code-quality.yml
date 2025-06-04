@@ -23,3 +23,6 @@ jobs:
 
       - name: Run PMD
         run: mvn pmd:check
+
+      - name: Run Unit Tests
+        run: mvn test
