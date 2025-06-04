@@ -1,16 +1,13 @@
 name: Build and Release
 
 on:
-  workflow_run:
-    workflows: ["Code Quality Check"] # This must match the 'name' in code-quality.yml
-    types:
-      - completed
-    branches: [master] # Only trigger for runs on the master branch
+  push:
+    branches: [ master ]
 
 jobs:
   build-and-release:
-    # This condition ensures the job only runs if the triggering workflow was successful
-    if: github.event.workflow_run.conclusion == 'success'
+    # This condition ensures the job only runs if the triggering workflow was 
+    if: [code-quality]
     runs-on: ubuntu-latest
     permissions:
       contents: write
