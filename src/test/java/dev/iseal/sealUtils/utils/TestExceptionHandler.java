@@ -8,6 +8,7 @@ import org.opentest4j.AssertionFailedError;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,8 +47,8 @@ public class TestExceptionHandler {
                     new Exception("Test Exception"),
                     Level.INFO,
                     "TEST_ERROR_MESSAGE",
-                    Logger.getLogger("TestLogger"),
                     true,
+                    Optional.empty(),
                     "Test Info 1",
                     "Test Info 2"
             ).orElseThrow();
@@ -55,13 +56,13 @@ public class TestExceptionHandler {
                     .isNotNull()
                     .isExactlyInstanceOf(ArrayList.class)
                     .isNotEmpty()
-                    .contains("[SealUtils] Exception triggered by " + TestExceptionHandler.class.getName())
-                    .contains("[SealUtils] The exception message is Test Exception")
-                    .contains("[SealUtils] The error message is TEST_ERROR_MESSAGE")
-                    .contains("[SealUtils] More info 1: Test Info 1")
-                    .contains("[SealUtils] More info 2: Test Info 2")
-                    .contains("[SealUtils] Dump from: ADumpable -> name: ADumpable")
-                    .contains("[SealUtils] Dump from: AnotherDumpable -> name: AnotherDumpable");
+                    .contains("Exception triggered by " + TestExceptionHandler.class.getName())
+                    .contains("The exception message is Test Exception")
+                    .contains("The error message is TEST_ERROR_MESSAGE")
+                    .contains("More info 1: Test Info 1")
+                    .contains("More info 2: Test Info 2")
+                    .contains("Dump from: ADumpable -> name: ADumpable")
+                    .contains("Dump from: AnotherDumpable -> name: AnotherDumpable");
         } catch (Exception e) {
             // throw an assertion error if the exception is not handled correctly
             throw new AssertionFailedError("Exception was not handled correctly", e);

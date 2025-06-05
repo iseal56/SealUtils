@@ -82,7 +82,7 @@ public class ExceptionHandler {
             dumpLog.forEach(log::info);
         }
         
-        return printToConsole ? Optional.of(dumpLog) : Optional.empty();
+        return printToConsole ? Optional.empty() : Optional.of(dumpLog);
     }
 
     private void attemptToDealWithCustomException(Exception ex) {
