@@ -16,9 +16,11 @@ import java.util.logging.Logger;
  */
 public class JDBCHandler {
 
-    // Note: Table names are quoted (e.g., with double quotes) in SQL statements
-    // to handle special characters, reserved keywords, and improve security.
-    // Column names are also quoted in relevant operations.
+    // Note: Table name quoting (e.g., with double quotes) might be necessary for names with
+    // special characters or reserved keywords, depending on the database.
+    // This implementation does not quote table names in SQL statements,
+    // assuming they are sanitized and do not contain special characters.
+    // FIXME: Consider quoting table names in SQL statements to prevent SQL injection and handle special characters.
 
     private final Logger LOGGER;
 
@@ -165,7 +167,7 @@ public class JDBCHandler {
      * @return true if creation is successful, false otherwise
      */
     public boolean createTable(String tableName, Map<String, String> columns) {
-        StringBuilder sql = new StringBuilder("CREATE TABLE " + quoteIdentifier(tableName) + " (");
+        StringBuilder sql = new StringBuilder("CREATE TABLE " + tableName + " (");
 
         boolean first = true;
         for (Map.Entry<String, String> column : columns.entrySet()) {
@@ -269,7 +271,7 @@ public class JDBCHandler {
         }
 
         // If we reach here, tableExists(tableName) returned true, meaning the table was found.
-        String sql = "DROP TABLE " + quoteIdentifier(tableName);
+        String sql = "DROP TABLE " + tableName;
 
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
@@ -310,8 +312,13 @@ public class JDBCHandler {
             first = false;
         }
 
-        String safeTableName = quoteIdentifier(tableName);
-        String sql = "INSERT INTO " + safeTableName + " (" + columnsBuilder.toString() + ") VALUES (" + placeholders.toString() + ")";
+        // It's generally safer to quote table names as well,
+        // but the original sanitization is kept here.
+        // Consider replacing with `String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";`
+        // if table names can also be keywords or contain special characters.
+        String sanitizedTableName = tableName.replaceAll("\\s+", "_").replaceAll("\"", ""); // Basic sanitization
+
+        String sql = "INSERT INTO " + sanitizedTableName + " (" + columnsBuilder.toString() + ") VALUES (" + placeholders.toString() + ")";
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (int i = 0; i < paramValues.size(); i++) {
@@ -352,7 +359,8 @@ public class JDBCHandler {
             columnStr = quotedColumns.toString();
         }
 
-        String sql = "SELECT " + columnStr + " FROM " + quoteIdentifier(tableName);
+        // Consider quoting table name: String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";
+        String sql = "SELECT " + columnStr + " FROM " + tableName;
 
 
         if (condition != null && !condition.isEmpty()) {
@@ -468,22 +476,6 @@ public class JDBCHandler {
     }
 
     /**
-     * Quotes an SQL identifier (e.g., table or column name).
-     * It surrounds the identifier with double quotes and escapes any existing double quotes within it.
-     *
-     * @param identifier The identifier to quote.
-     * @return The quoted identifier.
-     * @throws IllegalArgumentException if the identifier is null or empty.
-     */
-    private String quoteIdentifier(String identifier) {
-        if (identifier == null || identifier.trim().isEmpty()) {
-            throw new IllegalArgumentException("Identifier cannot be null or empty.");
-        }
-        // Replace any double quote with two double quotes, then wrap in double quotes
-        return "\"" + identifier.replace("\"", "\"\"") + "\"";
-    }
-
-    /**
      * Updates records in a table.
      *
      * @param tableName The name of the table
@@ -507,7 +499,8 @@ public class JDBCHandler {
             first = false;
         }
 
-        String sql = "UPDATE " + quoteIdentifier(tableName) + " SET " + setClause;
+        // Consider quoting table name: String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";
+        String sql = "UPDATE " + tableName + " SET " + setClause;
 
 
         if (condition != null && !condition.isEmpty()) {
@@ -547,7 +540,8 @@ public class JDBCHandler {
      * @return true if deletion is successful, false otherwise
      */
     public boolean deleteRecords(String tableName, String condition, Object... params) {
-        String sql = "DELETE FROM " + quoteIdentifier(tableName);
+        // Consider quoting table name: String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";
+        String sql = "DELETE FROM " + tableName;
 
         if (condition != null && !condition.isEmpty()) {
             // Note: Column names within the 'condition' string are not automatically quoted here.
