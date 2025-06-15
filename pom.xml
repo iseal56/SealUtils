@@ -6,7 +6,7 @@
 
     <groupId>dev.iseal</groupId>
     <artifactId>SealUtils</artifactId>
-    <version>1.0.0.1</version>
+    <version>1.0.1.0</version>
     <description>A purely java lib to handle some stuff in my programs</description>
 
     <properties>
@@ -136,6 +136,12 @@
             <artifactId>postgresql</artifactId>
             <version>42.7.5</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <version>23.8.0.25.04</version>
         </dependency>
 
         <!-- tests -->

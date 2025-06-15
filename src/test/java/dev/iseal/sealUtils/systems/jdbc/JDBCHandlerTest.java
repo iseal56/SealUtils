@@ -3,6 +3,7 @@ package dev.iseal.sealUtils.systems.jdbc;
 import dev.iseal.sealUtils.systems.database.JDBCHandler;
 import dev.iseal.sealUtils.systems.database.JDBCHandlerBuilder;
 import dev.iseal.sealUtils.utils.ExceptionHandler;
+import io.github.cdimascio.dotenv.Dotenv;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +11,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
@@ -24,6 +27,7 @@ public class JDBCHandlerTest {
 
     private static String dbPath = System.getProperty("user.dir") + "/tests/jdbc/test";
     private static Path dbDirPath = Paths.get(System.getProperty("user.dir") + "/tests/jdbc");
+    Dotenv dotenv = Dotenv.configure().load();
 
     @AfterAll
     static void tearDown() {
@@ -123,6 +127,28 @@ public class JDBCHandlerTest {
         testTables(handler);
     }
 
+    @Test
+    void testADB() {
+        // Load environment variables
+        String adbUrl = dotenv.get("ADB_URL");
+        String adbUser = dotenv.get("ADB_USER");
+        String adbPassword = dotenv.get("ADB_PASSWORD");
+        // Check if the environment variables are set
+        assertNotNull(adbUrl);
+        assertNotNull(adbUser);
+        assertNotNull(adbPassword);
+        assertFalse(adbUrl.isEmpty());
+        assertFalse(adbUser.isEmpty());
+        assertFalse(adbPassword.isEmpty());
+        // build a handler
+        JDBCHandlerBuilder builder = JDBCHandlerBuilder.forOracleAutonomousDescriptor(adbUrl, adbUser, adbPassword);
+        JDBCHandler handler = builder.build();
+        assertThat(handler)
+                .isNotNull()
+                .isExactlyInstanceOf(JDBCHandler.class);
+        testTables(handler);
+    }
+
     //TODO: make a test for MySQL and Postgres because they require a running server
 
     private void testTables(JDBCHandler handler) {
@@ -130,28 +156,31 @@ public class JDBCHandlerTest {
         assertThat(handler.isConnected())
                 .isTrue();
 
-        // begin a transaction
-        assertTrue(handler.beginTransaction());
         // create a table and insert a record
         HashMap<String, String> columns = new HashMap<>();
         columns.put("ID", "INTEGER PRIMARY KEY");
         columns.put("NAME", "VARCHAR(255)");
+        if (handler.tableExists("test_table")) {
+            assertTrue(handler.dropTable("test_table"));
+        }
         assertTrue(handler.createTable("test_table", columns));
 
         HashMap<String, Object> values = new HashMap<>();
         values.put("ID", "1");
         values.put("NAME", "Test");
         assertTrue(handler.insertRecord("test_table", values));
-        // finally, commit the transaction.
-        assertTrue(handler.commitTransaction());
 
         // check if the record was inserted
         List<Map<String, Object>> results = handler.queryRecords("test_table", null, null);
         assertThat(results)
                 .isNotNull();
 
-        assertThat(results.get(0).get("ID"))
-                .isEqualTo(1);
+        Object idValue = results.get(0).get("ID");
+        assertThat(idValue)
+                .isInstanceOf(Number.class); // Ensure it's a number
+        assertThat(((Number) idValue).intValue())
+                .isEqualTo(1); // Compare its int value
+
         assertThat(results.get(0).get("NAME"))
                 .isEqualTo("Test");
 

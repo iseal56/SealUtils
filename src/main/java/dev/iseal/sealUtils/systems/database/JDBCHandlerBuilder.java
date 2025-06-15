@@ -24,9 +24,8 @@ public class JDBCHandlerBuilder {
     }
 
     /**
-     *
      * Sets the database type.
-     * @param dbType The database type (sqlite, h2, hsqldb, mysql, postgresql)
+     * @param dbType The database type (sqlite, h2, hsqldb, mysql, postgresql, oracleautonomous)
      * @return This builder
      */
     public JDBCHandlerBuilder withDatabaseType(String dbType) {
@@ -96,6 +95,14 @@ public class JDBCHandlerBuilder {
             case "hsqldb" -> "jdbc:hsqldb:file:" + filePath;
             case "mysql" -> "jdbc:mysql://" + filePath;
             case "postgresql" -> "jdbc:postgresql://" + filePath;
+            case "oracleautonomous" -> {
+                String trimmed = filePath.trim();
+                if (trimmed.startsWith("(description=") || trimmed.startsWith("(DESCRIPTION=")) {
+                    yield "jdbc:oracle:thin:@" + trimmed;
+                } else {
+                    yield "jdbc:oracle:thin:@" + filePath;
+                }
+            }
             default -> throw new IllegalArgumentException("Unsupported database type: " + dbType);
         };
     }
@@ -180,5 +187,34 @@ public class JDBCHandlerBuilder {
         return new JDBCHandlerBuilder()
                 .withDatabaseType("postgresql")
                 .withFilePath(hostPortDatabase);
+    }
+
+    /**
+     * Configures builder for Oracle Autonomous Database (ADB) network connection.
+     * @param tnsAlias The TNS alias or connection string (e.g., 'adb.us-ashburn-1.oraclecloud.com/your_db')
+     * @param username Oracle DB username
+     * @param password Oracle DB password
+     * @return This builder
+     */
+    public static JDBCHandlerBuilder forOracleAutonomous(String tnsAlias, String username, String password) {
+        return new JDBCHandlerBuilder()
+                .withDatabaseType("oracleautonomous")
+                .withFilePath(tnsAlias) // Using filePath to store TNS alias
+                .withCredentials(username, password);
+    }
+
+    /**
+     * Configures builder for Oracle Autonomous Database (ADB) using a full Easy Connect descriptor string.
+     * @param descriptor The Easy Connect Plus descriptor string
+     * @param username Oracle DB username
+     * @param password Oracle DB password
+     * @return This builder
+     */
+    public static JDBCHandlerBuilder forOracleAutonomousDescriptor(String descriptor, String username, String password) {
+        // The descriptor is used directly in the JDBC URL
+        return new JDBCHandlerBuilder()
+                .withDatabaseType("oracleautonomous")
+                .withFilePath(descriptor)
+                .withCredentials(username, password);
     }
 }
