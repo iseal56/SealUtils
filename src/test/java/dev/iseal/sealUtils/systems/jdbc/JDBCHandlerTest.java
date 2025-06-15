@@ -4,15 +4,12 @@ import dev.iseal.sealUtils.systems.database.JDBCHandler;
 import dev.iseal.sealUtils.systems.database.JDBCHandlerBuilder;
 import dev.iseal.sealUtils.utils.ExceptionHandler;
 import io.github.cdimascio.dotenv.Dotenv;
+import io.github.cdimascio.dotenv.DotenvException;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
@@ -27,7 +24,7 @@ public class JDBCHandlerTest {
 
     private static String dbPath = System.getProperty("user.dir") + "/tests/jdbc/test";
     private static Path dbDirPath = Paths.get(System.getProperty("user.dir") + "/tests/jdbc");
-    Dotenv dotenv = Dotenv.configure().load();
+    private static Dotenv dotenv;
 
     @AfterAll
     static void tearDown() {
@@ -57,6 +54,14 @@ public class JDBCHandlerTest {
 
     @BeforeEach
     void setup() {
+
+        try {
+            dotenv = Dotenv.configure().load();
+        } catch (DotenvException ex) {
+            System.err.println("Dotenv not found or failed to load. Skipping ADB test.");
+            dotenv = null; // Set to null if dotenv is not available
+        }
+
         // delete old db file and directory
         if (Files.exists(dbDirPath)) {
             System.out.println("Deleting old db dir and recreating it: " + dbDirPath);
@@ -129,6 +134,11 @@ public class JDBCHandlerTest {
 
     @Test
     void testADB() {
+        if (dotenv == null) {
+            System.out.println("Skipping ADB test because dotenv is not available.");
+            return; // Skip the test if dotenv is not available
+        }
+
         // Load environment variables
         String adbUrl = dotenv.get("ADB_URL");
         String adbUser = dotenv.get("ADB_USER");
@@ -155,6 +165,8 @@ public class JDBCHandlerTest {
         handler.connect();
         assertThat(handler.isConnected())
                 .isTrue();
+
+        System.out.println("Testing table creation, insertion, and querying for " + handler.getDatabaseType());
 
         // create a table and insert a record
         HashMap<String, String> columns = new HashMap<>();
@@ -210,5 +222,6 @@ public class JDBCHandlerTest {
 
         // Clean up
         assertTrue(handler.disconnect());
+        System.out.println("Testing table deletion, insertion, and querying for " + handler.getDatabaseType() + " completed successfully.");
     }
 }

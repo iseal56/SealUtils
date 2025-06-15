@@ -540,7 +540,6 @@ public class JDBCHandler {
      * @return true if deletion is successful, false otherwise
      */
     public boolean deleteRecords(String tableName, String condition, Object... params) {
-        // Consider quoting table name: String safeTableName = "\"" + tableName.replace("\"", "\"\"") + "\"";
         String sql = "DELETE FROM " + tableName;
 
         if (condition != null && !condition.isEmpty()) {
@@ -619,5 +618,25 @@ public class JDBCHandler {
                 LOGGER.log(Level.SEVERE, "Failed to rollback transaction", e);
             return false;
         }
+    }
+
+    public String getDatabaseType() {
+        if (jdbcUrl == null || jdbcUrl.isEmpty()) {
+            return "unknown";
+        }
+        if (jdbcUrl.startsWith("jdbc:sqlite:")) {
+            return "sqlite";
+        } else if (jdbcUrl.startsWith("jdbc:h2:")) {
+            return "h2";
+        } else if (jdbcUrl.startsWith("jdbc:hsqldb:")) {
+            return "hsqldb";
+        } else if (jdbcUrl.startsWith("jdbc:mysql:")) {
+            return "mysql";
+        } else if (jdbcUrl.startsWith("jdbc:postgresql:")) {
+            return "postgresql";
+        } else if (jdbcUrl.startsWith("jdbc:oracle:thin:@")) {
+            return "oracle";
+        }
+        return "unknown";
     }
 }
