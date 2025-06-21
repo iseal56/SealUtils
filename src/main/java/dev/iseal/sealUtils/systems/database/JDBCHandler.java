@@ -195,6 +195,41 @@ public class JDBCHandler {
     }
 
     /**
+     * Creates a new table in the database.
+     *
+     * @param conn The connection to use (must be managed by the caller)
+     * @param tableName The name of the table to create
+     * @param columns A map of column names and their SQL type definitions
+     * @return true if creation is successful, false otherwise
+     */
+    public boolean createTable(Connection conn, String tableName, Map<String, String> columns) {
+        StringBuilder sql = new StringBuilder("CREATE TABLE " + tableName + " (");
+
+        boolean first = true;
+        for (Map.Entry<String, String> column : columns.entrySet()) {
+            if (!first) {
+                sql.append(", ");
+            }
+            sql.append("\"").append(column.getKey()).append("\"").append(" ").append(column.getValue()); // Quote column name
+            first = false;
+        }
+
+        sql.append(")");
+
+        try (Statement statement = conn.createStatement()) {
+            statement.executeUpdate(sql.toString());
+            LOGGER.info("Table created successfully: " + tableName);
+            return true;
+        } catch (SQLException e) {
+            if (strictMode)
+                throw new RuntimeException("Failed to create table: " + tableName + ": " + e.getMessage(), e);
+            else
+                LOGGER.log(Level.SEVERE, "Failed to create table: " + tableName, e);
+            return false;
+        }
+    }
+
+    /**
      * Tests if a table exists in the database using DatabaseMetaData.
      *
      * @param tableName The name of the table to check
@@ -338,6 +373,45 @@ public class JDBCHandler {
     }
 
     /**
+     * Overloaded: Inserts a record into a table using a provided connection (for transaction support).
+     * @param conn The connection to use (must be managed by the caller)
+     * @param tableName The name of the table
+     * @param values A map of column names and their values
+     * @return true if insertion is successful, false otherwise
+     */
+    public boolean insertRecord(Connection conn, String tableName, Map<String, Object> values) {
+        StringBuilder columnsBuilder = new StringBuilder();
+        StringBuilder placeholders = new StringBuilder();
+        List<Object> paramValues = new ArrayList<>();
+        boolean first = true;
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            if (!first) {
+                columnsBuilder.append(", ");
+                placeholders.append(", ");
+            }
+            columnsBuilder.append("\"").append(entry.getKey()).append("\"");
+            placeholders.append("?");
+            paramValues.add(entry.getValue());
+            first = false;
+        }
+        String sanitizedTableName = tableName.replaceAll("\\s+", "_").replaceAll("\"", "");
+        String sql = "INSERT INTO " + sanitizedTableName + " (" + columnsBuilder + ") VALUES (" + placeholders + ")";
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            for (int i = 0; i < paramValues.size(); i++) {
+                statement.setObject(i + 1, paramValues.get(i));
+            }
+            int rowsAffected = statement.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            if (strictMode)
+                throw new RuntimeException("Failed to insert record into table: " + tableName + ": " + e.getMessage(), e);
+            else
+                LOGGER.log(Level.SEVERE, "Failed to insert record into table: " + tableName + " with SQL: " + sql, e);
+            return false;
+        }
+    }
+
+    /**
      * Queries records from a table.
      *
      * @param tableName The name of the table
@@ -404,6 +478,58 @@ public class JDBCHandler {
     }
 
     /**
+     * Overloaded: Queries records from a table using a provided connection (for transaction support).
+     * @param conn The connection to use (must be managed by the caller)
+     * @param tableName The name of the table
+     * @param columns The columns to retrieve, or null for all columns
+     * @param condition The WHERE condition for the query
+     * @param params Parameters for the WHERE condition
+     * @return A list of maps representing the query results
+     */
+    public List<Map<String, Object>> queryRecords(Connection conn, String tableName, String[] columns, String condition, Object... params) {
+        String columnStr = "*";
+        if (columns != null && columns.length > 0) {
+            StringBuilder quotedColumns = new StringBuilder();
+            for (int i = 0; i < columns.length; i++) {
+                quotedColumns.append("\"").append(columns[i]).append("\"");
+                if (i < columns.length - 1) {
+                    quotedColumns.append(", ");
+                }
+            }
+            columnStr = quotedColumns.toString();
+        }
+        String sql = "SELECT " + columnStr + " FROM " + tableName;
+        if (condition != null && !condition.isEmpty()) {
+            sql += " WHERE " + condition;
+        }
+        List<Map<String, Object>> results = new ArrayList<>();
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                statement.setObject(i + 1, params[i]);
+            }
+            try (ResultSet resultSet = statement.executeQuery()) {
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                while (resultSet.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        String columnName = metaData.getColumnName(i);
+                        Object value = resultSet.getObject(i);
+                        row.put(columnName, value);
+                    }
+                    results.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            if (strictMode)
+                throw new RuntimeException("Failed to query records from table: " + tableName + ": " + e.getMessage(), e);
+            else
+                LOGGER.log(Level.SEVERE, "Failed to query records from table: " + tableName, e);
+        }
+        return results;
+    }
+
+    /**
      * Queries records from a table using a map for conditions.
      *
      * @param tableName The name of the table
@@ -431,6 +557,36 @@ public class JDBCHandler {
         }
 
         return queryRecords(tableName, null, conditionBuilder.toString(), params.toArray());
+    }
+
+    /**
+     * Overloaded: Queries records from a table using a provided connection and a map for conditions (for transaction support).
+     * @param conn The connection to use (must be managed by the caller)
+     * @param tableName The name of the table
+     * @param conditions A map of column names and their values for WHERE conditions
+     * @return A list of maps representing the query results
+     */
+    public List<Map<String, Object>> queryRecords(Connection conn, String tableName, Map<String, Object> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            // No conditions, return all records
+            return queryRecords(conn, tableName, null, null);
+        }
+
+        StringBuilder conditionBuilder = new StringBuilder();
+        List<Object> params = new ArrayList<>();
+
+        boolean first = true;
+        for (Map.Entry<String, Object> entry : conditions.entrySet()) {
+            if (!first) {
+                conditionBuilder.append(" AND ");
+            }
+            // Quote column names in conditions
+            conditionBuilder.append("\"").append(entry.getKey()).append("\"").append(" = ?");
+            params.add(entry.getValue());
+            first = false;
+        }
+
+        return queryRecords(conn, tableName, null, conditionBuilder.toString(), params.toArray());
     }
 
     /**
@@ -533,6 +689,50 @@ public class JDBCHandler {
     }
 
     /**
+     * Overloaded: Updates records in a table using a provided connection (for transaction support).
+     * @param conn The connection to use (must be managed by the caller)
+     * @param tableName The name of the table
+     * @param values A map of column names and their new values
+     * @param condition The WHERE condition for the update
+     * @param conditionParams Parameters for the WHERE condition
+     * @return true if update is successful, false otherwise
+     */
+    public boolean updateRecords(Connection conn, String tableName, Map<String, Object> values, String condition, Object... conditionParams) {
+        StringBuilder setClause = new StringBuilder();
+        List<Object> paramValues = new ArrayList<>();
+        boolean first = true;
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            if (!first) {
+                setClause.append(", ");
+            }
+            setClause.append("\"").append(entry.getKey()).append("\" = ?");
+            paramValues.add(entry.getValue());
+            first = false;
+        }
+        String sql = "UPDATE " + tableName + " SET " + setClause;
+        if (condition != null && !condition.isEmpty()) {
+            sql += " WHERE " + condition;
+        }
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            int paramIndex = 1;
+            for (Object value : paramValues) {
+                statement.setObject(paramIndex++, value);
+            }
+            for (Object param : conditionParams) {
+                statement.setObject(paramIndex++, param);
+            }
+            int rowsAffected = statement.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            if (strictMode)
+                throw new RuntimeException("Failed to update records in table: " + tableName + ": " + e.getMessage(), e);
+            else
+                LOGGER.log(Level.SEVERE, "Failed to update records in table: " + tableName, e);
+            return false;
+        }
+    }
+
+    /**
      * Deletes records from a table.
      *
      * @param tableName The name of the table
@@ -554,6 +754,34 @@ public class JDBCHandler {
                 statement.setObject(i + 1, params[i]);
             }
 
+            int rowsAffected = statement.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            if (strictMode)
+                throw new RuntimeException("Failed to delete records from table: " + tableName + ": " + e.getMessage(), e);
+            else
+                LOGGER.log(Level.SEVERE, "Failed to delete records from table: " + tableName, e);
+            return false;
+        }
+    }
+
+    /**
+     * Overloaded: Deletes records from a table using a provided connection (for transaction support).
+     * @param conn The connection to use (must be managed by the caller)
+     * @param tableName The name of the table
+     * @param condition The WHERE condition for deletion
+     * @param params Parameters for the WHERE condition
+     * @return true if deletion is successful, false otherwise
+     */
+    public boolean deleteRecords(Connection conn, String tableName, String condition, Object... params) {
+        String sql = "DELETE FROM " + tableName;
+        if (condition != null && !condition.isEmpty()) {
+            sql += " WHERE " + condition;
+        }
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                statement.setObject(i + 1, params[i]);
+            }
             int rowsAffected = statement.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
