@@ -849,6 +849,62 @@ public class JDBCHandler {
         }
     }
 
+    /**
+     * Begins a transaction on the provided connection.
+     * @param conn The connection to use
+     * @return true if successful, false otherwise
+     */
+    public boolean beginTransaction(Connection conn) {
+        try {
+            conn.setAutoCommit(false);
+            return true;
+        } catch (SQLException e) {
+            if (strictMode)
+                throw new RuntimeException("Failed to begin transaction: " + e.getMessage(), e);
+            else
+                LOGGER.log(Level.SEVERE, "Failed to begin transaction", e);
+            return false;
+        }
+    }
+
+    /**
+     * Commits a transaction on the provided connection.
+     * @param conn The connection to use
+     * @return true if successful, false otherwise
+     */
+    public boolean commitTransaction(Connection conn) {
+        try {
+            conn.commit();
+            conn.setAutoCommit(true);
+            return true;
+        } catch (SQLException e) {
+            if (strictMode)
+                throw new RuntimeException("Failed to commit transaction: " + e.getMessage(), e);
+            else
+                LOGGER.log(Level.SEVERE, "Failed to commit transaction", e);
+            return false;
+        }
+    }
+
+    /**
+     * Rolls back a transaction on the provided connection.
+     * @param conn The connection to use
+     * @return true if successful, false otherwise
+     */
+    public boolean rollbackTransaction(Connection conn) {
+        try {
+            conn.rollback();
+            conn.setAutoCommit(true);
+            return true;
+        } catch (SQLException e) {
+            if (strictMode)
+                throw new RuntimeException("Failed to rollback transaction: " + e.getMessage(), e);
+            else
+                LOGGER.log(Level.SEVERE, "Failed to rollback transaction", e);
+            return false;
+        }
+    }
+
     public String getDatabaseType() {
         if (jdbcUrl == null || jdbcUrl.isEmpty()) {
             return "unknown";
