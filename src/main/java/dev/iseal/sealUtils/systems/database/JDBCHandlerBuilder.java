@@ -14,6 +14,7 @@ public class JDBCHandlerBuilder {
     private String password;
     private boolean createIfNotExists;
     private boolean strictMode;
+    private int maxPoolSize;
 
     public JDBCHandlerBuilder() {
         this.dbType = "h2"; // Default to H2
@@ -21,6 +22,7 @@ public class JDBCHandlerBuilder {
         this.password = "";
         this.createIfNotExists = true;
         this.strictMode = false;
+        this.maxPoolSize = 3;
     }
 
     /**
@@ -77,6 +79,20 @@ public class JDBCHandlerBuilder {
     }
 
     /**
+     * Sets the maximum pool size for connections.
+     * @param maxPoolSize Maximum number of connections in the pool
+     * @return This builder
+     */
+    public JDBCHandlerBuilder withMaxPoolSize(int maxPoolSize) {
+        if (maxPoolSize <= 0) {
+            throw new IllegalArgumentException("Max pool size must be greater than 0");
+        }
+        this.maxPoolSize = maxPoolSize;
+        return this;
+    }
+
+
+    /**
      * Builds the JDBC URL based on configuration.
      * @return Properly formatted JDBC URL
      */
@@ -112,22 +128,10 @@ public class JDBCHandlerBuilder {
      * @return An initialized JDBCHandler
      */
     public JDBCHandler build() {
-        JDBCHandler handler = new JDBCHandler(strictMode);
+        JDBCHandler handler = new JDBCHandler(strictMode, maxPoolSize);
         handler.init(buildJdbcUrl(), username, password);
         return handler;
     }
-
-    /**
-     * Builds and initializes a ThreadSafeJDBCHandler.
-     * This is useful for multithreaded applications where database access needs to be synchronized.
-     * @return An initialized ThreadSafeJDBCHandler
-     */
-    public ThreadSafeJDBCHandler buildThreadSafe() {
-        ThreadSafeJDBCHandler handler = new ThreadSafeJDBCHandler(strictMode);
-        handler.init(buildJdbcUrl(), username, password);
-        return handler;
-    }
-
 
     /**
      * Builds, initializes, and connects a JDBCHandler.
@@ -136,14 +140,6 @@ public class JDBCHandlerBuilder {
      */
     public JDBCHandler buildAndConnect() {
         JDBCHandler handler = build();
-        if (!handler.connect()) {
-            throw new RuntimeException("Failed to connect to database: " + filePath);
-        }
-        return handler;
-    }
-
-    public ThreadSafeJDBCHandler buildAndConnectThreadSafe() {
-        ThreadSafeJDBCHandler handler = buildThreadSafe();
         if (!handler.connect()) {
             throw new RuntimeException("Failed to connect to database: " + filePath);
         }

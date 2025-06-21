@@ -228,7 +228,7 @@ public class JDBCHandlerTest {
         assertTrue(emptyResults.isEmpty());
 
         // Clean up
-        assertTrue(handler.disconnect());
+        handler.disconnect();
         LOGGER.info("Testing table deletion, insertion, and querying for " + handler.getDatabaseType() + " completed successfully.");
     }
 }

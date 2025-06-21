@@ -1,6 +1,8 @@
 package dev.iseal.sealUtils.systems.database;
 
 import dev.iseal.sealUtils.SealUtils;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -27,16 +29,18 @@ public class JDBCHandler {
     private String jdbcUrl;
     private String username;
     private String password;
-    private Connection connection;
-    private boolean strictMode;
+    private HikariDataSource dataSource;
+    private final boolean strictMode;
+    private final int maxPoolSize;
 
     /**
      * Constructor for JDBCHandler. Protected to enforce use of {@link JDBCHandlerBuilder}.
      * @param strictMode Whether to enable strict mode for error handling
      */
-    protected JDBCHandler(boolean strictMode) {
+    protected JDBCHandler(boolean strictMode, int maxPoolSize) {
         this.LOGGER = SealUtils.getLogger();
         this.strictMode = strictMode;
+        this.maxPoolSize = maxPoolSize;
     }
 
     /**
@@ -59,25 +63,42 @@ public class JDBCHandler {
      */
     public boolean connect() {
         try {
-            // check if the connection is already established
-            if (connection != null && !connection.isClosed()) {
+            if (dataSource != null && !dataSource.isClosed()) {
                 return true;
             }
-
-            // check driver availability before connecting
-            checkDriverAvailability();
-
-            // initiatiate the connection
-            connection = DriverManager.getConnection(jdbcUrl, username, password);
-            connection.setAutoCommit(true);
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(jdbcUrl);
+            if (username != null) config.setUsername(username);
+            if (password != null) config.setPassword(password);
+            config.setMaximumPoolSize(maxPoolSize);
+            config.setMinimumIdle(0);
+            config.setLeakDetectionThreshold(30000); // 30 seconds leak detection threshold
+            dataSource = new HikariDataSource(config);
             return true;
-        } catch (SQLException e) {
-            if (strictMode)
-                throw new RuntimeException("Failed to connect to database: " + e.getMessage(), e);
-            else
-                LOGGER.log(Level.WARNING, "Failed to connect to database: " + e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to initialize connection pool", e);
+            if (strictMode) throw new RuntimeException(e);
             return false;
         }
+    }
+
+    /**
+     * Closes the connection pool.
+     */
+    public void disconnect() {
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
+        }
+    }
+
+    /**
+     * Gets a connection from the pool.
+     */
+    public Connection getConnection() throws SQLException {
+        if (dataSource == null || dataSource.isClosed()) {
+            throw new SQLException("DataSource is not initialized or closed");
+        }
+        return dataSource.getConnection();
     }
 
     /**
@@ -87,32 +108,12 @@ public class JDBCHandler {
      */
     public boolean isConnected() {
         try {
-            return connection != null && !connection.isClosed();
-        } catch (SQLException e) {
+            return dataSource != null && !dataSource.isClosed();
+        } catch (Exception e) {
             if (strictMode)
                 throw new RuntimeException("Error checking connection status: " + e.getMessage(), e);
             else
                 LOGGER.log(Level.SEVERE, "Error checking connection status", e);
-            return false;
-        }
-    }
-
-    /**
-     * Closes the database connection.
-     *
-     * @return true if disconnection is successful, false otherwise
-     */
-    public boolean disconnect() {
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-            }
-            return true;
-        } catch (SQLException e) {
-            if (strictMode)
-                throw new RuntimeException("Failed to close database connection: " + e.getMessage(), e);
-            else
-                LOGGER.log(Level.SEVERE, "Failed to close database connection", e);
             return false;
         }
     }
@@ -125,7 +126,7 @@ public class JDBCHandler {
      */
     public boolean createDatabase(String databaseName) {
         String sql = "CREATE DATABASE " + databaseName;
-        try (Statement statement = connection.createStatement()) {
+        try (Connection conn = getConnection(); Statement statement = conn.createStatement()) {
             statement.executeUpdate(sql);
             LOGGER.info("Database created successfully: " + databaseName);
             return true;
@@ -146,7 +147,7 @@ public class JDBCHandler {
      */
     public boolean deleteDatabase(String databaseName) {
         String sql = "DROP DATABASE " + databaseName;
-        try (Statement statement = connection.createStatement()) {
+        try (Connection conn = getConnection(); Statement statement = conn.createStatement()) {
             statement.executeUpdate(sql);
             LOGGER.info("Database deleted successfully: " + databaseName);
             return true;
@@ -180,7 +181,7 @@ public class JDBCHandler {
 
         sql.append(")");
 
-        try (Statement statement = connection.createStatement()) {
+        try (Connection conn = getConnection(); Statement statement = conn.createStatement()) {
             statement.executeUpdate(sql.toString());
             LOGGER.info("Table created successfully: " + tableName);
             return true;
@@ -200,15 +201,15 @@ public class JDBCHandler {
      * @return true if the table exists, false otherwise
      */
     public boolean tableExists(String tableName) {
-        if (connection == null) {
-            LOGGER.log(Level.WARNING, "Cannot check table existence, connection is null.");
+        if (dataSource == null) {
+            LOGGER.log(Level.WARNING, "Cannot check table existence, dataSource is null.");
             if (strictMode) {
-                throw new IllegalStateException("Connection is not established.");
+                throw new IllegalStateException("DataSource is not initialized.");
             }
             return false;
         }
-        try {
-            DatabaseMetaData metaData = connection.getMetaData();
+        try (Connection conn = getConnection()) {
+            DatabaseMetaData metaData = conn.getMetaData();
             String effectiveTableName = tableName;
 
             // Adjust table name case based on database metadata
@@ -250,10 +251,10 @@ public class JDBCHandler {
      *         Throws RuntimeException in strictMode if any underlying operation fails (including the check or the drop).
      */
     public boolean dropTable(String tableName) {
-        if (connection == null) {
-            LOGGER.log(Level.WARNING, "Cannot drop table '" + tableName + "', connection is null.");
+        if (dataSource == null) {
+            LOGGER.log(Level.WARNING, "Cannot drop table '" + tableName + "', dataSource is null.");
             if (strictMode) {
-                throw new IllegalStateException("Connection is not established.");
+                throw new IllegalStateException("DataSource is not initialized.");
             }
             return false;
         }
@@ -273,7 +274,7 @@ public class JDBCHandler {
         // If we reach here, tableExists(tableName) returned true, meaning the table was found.
         String sql = "DROP TABLE " + tableName;
 
-        try (Statement statement = connection.createStatement()) {
+        try (Connection conn = getConnection(); Statement statement = conn.createStatement()) {
             statement.executeUpdate(sql);
             LOGGER.info("Table '" + tableName + "' dropped successfully.");
             return true;
@@ -320,7 +321,7 @@ public class JDBCHandler {
 
         String sql = "INSERT INTO " + sanitizedTableName + " (" + columnsBuilder.toString() + ") VALUES (" + placeholders.toString() + ")";
 
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection(); PreparedStatement statement = conn.prepareStatement(sql)) {
             for (int i = 0; i < paramValues.size(); i++) {
                 statement.setObject(i + 1, paramValues.get(i));
             }
@@ -371,7 +372,7 @@ public class JDBCHandler {
 
         List<Map<String, Object>> results = new ArrayList<>();
 
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection(); PreparedStatement statement = conn.prepareStatement(sql)) {
             for (int i = 0; i < params.length; i++) {
                 statement.setObject(i + 1, params[i]);
             }
@@ -437,7 +438,7 @@ public class JDBCHandler {
      *
      * @throws SQLException if the appropriate driver can't be found
      */
-    private void checkDriverAvailability() throws SQLException {
+    private void checkDriverAvailability() throws SQLException { //NOPMD - testing
         if (jdbcUrl == null || jdbcUrl.isEmpty()) {
             throw new SQLException("JDBC URL is not set");
         }
@@ -509,7 +510,7 @@ public class JDBCHandler {
             sql += " WHERE " + condition;
         }
 
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection(); PreparedStatement statement = conn.prepareStatement(sql)) {
             int paramIndex = 1;
 
             for (Object value : paramValues) {
@@ -548,7 +549,7 @@ public class JDBCHandler {
             sql += " WHERE " + condition;
         }
 
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection conn = getConnection(); PreparedStatement statement = conn.prepareStatement(sql)) {
             for (int i = 0; i < params.length; i++) {
                 statement.setObject(i + 1, params[i]);
             }
@@ -570,8 +571,8 @@ public class JDBCHandler {
      * @return true if the transaction was successfully started, false otherwise
      */
     public boolean beginTransaction() {
-        try {
-            connection.setAutoCommit(false);
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
             return true;
         } catch (SQLException e) {
             if (strictMode)
@@ -588,9 +589,9 @@ public class JDBCHandler {
      * @return true if the transaction was successfully committed, false otherwise
      */
     public boolean commitTransaction() {
-        try {
-            connection.commit();
-            connection.setAutoCommit(true);
+        try (Connection conn = getConnection()) {
+            conn.commit();
+            conn.setAutoCommit(true);
             return true;
         } catch (SQLException e) {
             if (strictMode)
@@ -607,9 +608,9 @@ public class JDBCHandler {
      * @return true if the transaction was successfully rolled back, false otherwise
      */
     public boolean rollbackTransaction() {
-        try {
-            connection.rollback();
-            connection.setAutoCommit(true);
+        try (Connection conn = getConnection()) {
+            conn.rollback();
+            conn.setAutoCommit(true);
             return true;
         } catch (SQLException e) {
             if (strictMode)
