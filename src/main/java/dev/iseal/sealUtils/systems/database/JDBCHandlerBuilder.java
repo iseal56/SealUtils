@@ -117,6 +117,17 @@ public class JDBCHandlerBuilder {
         return handler;
     }
 
+    /**
+     * Builds and initializes a ThreadSafeJDBCHandler.
+     * This is useful for multithreaded applications where database access needs to be synchronized.
+     * @return An initialized ThreadSafeJDBCHandler
+     */
+    public ThreadSafeJDBCHandler buildThreadSafe() {
+        ThreadSafeJDBCHandler handler = new ThreadSafeJDBCHandler(strictMode);
+        handler.init(buildJdbcUrl(), username, password);
+        return handler;
+    }
+
 
     /**
      * Builds, initializes, and connects a JDBCHandler.
@@ -125,6 +136,14 @@ public class JDBCHandlerBuilder {
      */
     public JDBCHandler buildAndConnect() {
         JDBCHandler handler = build();
+        if (!handler.connect()) {
+            throw new RuntimeException("Failed to connect to database: " + filePath);
+        }
+        return handler;
+    }
+
+    public ThreadSafeJDBCHandler buildAndConnectThreadSafe() {
+        ThreadSafeJDBCHandler handler = buildThreadSafe();
         if (!handler.connect()) {
             throw new RuntimeException("Failed to connect to database: " + filePath);
         }

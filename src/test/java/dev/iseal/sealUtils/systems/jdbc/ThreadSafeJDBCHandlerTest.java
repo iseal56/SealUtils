@@ -1,7 +1,7 @@
 package dev.iseal.sealUtils.systems.jdbc;
 
-import dev.iseal.sealUtils.systems.database.JDBCHandler;
 import dev.iseal.sealUtils.systems.database.JDBCHandlerBuilder;
+import dev.iseal.sealUtils.systems.database.ThreadSafeJDBCHandler;
 import dev.iseal.sealUtils.utils.ExceptionHandler;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.github.cdimascio.dotenv.DotenvException;
@@ -15,16 +15,19 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JDBCHandlerTest {
+public class ThreadSafeJDBCHandlerTest {
 
-    private static final Logger LOGGER = Logger.getLogger(JDBCHandlerTest.class.getName());
-    private static String dbPath = System.getProperty("user.dir") + "/tests/jdbc/test";
+    private static final Logger LOGGER = Logger.getLogger(ThreadSafeJDBCHandlerTest.class.getName());
+    private static String dbPath = System.getProperty("user.dir") + "/tests/jdbc/test_threadsafe";
     private static Path dbDirPath = Paths.get(System.getProperty("user.dir") + "/tests/jdbc");
     private static Dotenv dotenv;
 
@@ -101,40 +104,55 @@ public class JDBCHandlerTest {
     @Test
     void testSqlite() {
         // build a handler
-        LOGGER.info("Starting SQLite test with dbPath: " + dbPath);
         JDBCHandlerBuilder builder = JDBCHandlerBuilder.forSqlite(dbPath)
                 .withCredentials("admin", "password");
-        JDBCHandler handler = builder.build();
+        ThreadSafeJDBCHandler handler = builder.buildThreadSafe();
         assertThat(handler)
                 .isNotNull()
-                .isExactlyInstanceOf(JDBCHandler.class);
+                .isExactlyInstanceOf(ThreadSafeJDBCHandler.class);
         testTables(handler);
+        try {
+            testMultiThreaded(handler);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            fail("Multithreaded test for SQLite was interrupted.", e);
+        }
     }
 
     @Test
     void testH2() {
         // build a handler
-        LOGGER.info("Starting H2 test with dbPath: " + dbPath);
         JDBCHandlerBuilder builder = JDBCHandlerBuilder.forH2(dbPath)
                 .withCredentials("admin", "password");
-        JDBCHandler handler = builder.build();
+        ThreadSafeJDBCHandler handler = builder.buildThreadSafe();
         assertThat(handler)
                 .isNotNull()
-                .isExactlyInstanceOf(JDBCHandler.class);
+                .isExactlyInstanceOf(ThreadSafeJDBCHandler.class);
         testTables(handler);
+        try {
+            testMultiThreaded(handler);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            fail("Multithreaded test for H2 was interrupted.", e);
+        }
     }
 
     @Test
     void testHSQLDB() {
         // build a handler
-        LOGGER.info("Starting HSQLDB test with dbPath: " + dbPath);
         JDBCHandlerBuilder builder = JDBCHandlerBuilder.forHSQLDB(dbPath)
                 .withCredentials("admin", "password");
-        JDBCHandler handler = builder.build();
+        ThreadSafeJDBCHandler handler = builder.buildThreadSafe();
         assertThat(handler)
                 .isNotNull()
-                .isExactlyInstanceOf(JDBCHandler.class);
+                .isExactlyInstanceOf(ThreadSafeJDBCHandler.class);
         testTables(handler);
+        try {
+            testMultiThreaded(handler);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            fail("Multithreaded test for HSQLDB was interrupted.", e);
+        }
     }
 
     @Test
@@ -143,8 +161,6 @@ public class JDBCHandlerTest {
             LOGGER.info("Skipping ADB test because dotenv is not available.");
             return; // Skip the test if dotenv is not available
         }
-
-        LOGGER.info("Starting ADB test with dbPath: " + dbPath);
 
         // Load environment variables
         String adbUrl = dotenv.get("ADB_URL");
@@ -159,16 +175,74 @@ public class JDBCHandlerTest {
         assertFalse(adbPassword.isEmpty());
         // build a handler
         JDBCHandlerBuilder builder = JDBCHandlerBuilder.forOracleAutonomousDescriptor(adbUrl, adbUser, adbPassword);
-        JDBCHandler handler = builder.build();
+        ThreadSafeJDBCHandler handler = builder.buildThreadSafe();
         assertThat(handler)
                 .isNotNull()
-                .isExactlyInstanceOf(JDBCHandler.class);
+                .isExactlyInstanceOf(ThreadSafeJDBCHandler.class);
         testTables(handler);
+        try {
+            testMultiThreaded(handler);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            fail("Multithreaded test for ADB was interrupted.", e);
+        }
     }
 
-    //TODO: make a test for MySQL and Postgres because they require a running server
+    private void testMultiThreaded(ThreadSafeJDBCHandler handler) throws InterruptedException {
+        LOGGER.info("Starting multithreaded test for " + handler.getDatabaseType());
+        handler.connect();
 
-    private void testTables(JDBCHandler handler) {
+        HashMap<String, String> columns = new HashMap<>();
+        columns.put("ID", "INTEGER PRIMARY KEY");
+        columns.put("THREAD_NAME", "VARCHAR(255)");
+        if (handler.tableExists("multithread_test")) {
+            assertTrue(handler.dropTable("multithread_test"));
+        }
+        assertTrue(handler.createTable("multithread_test", columns));
+        handler.disconnect();
+
+        int numberOfThreads = 10;
+        ExecutorService service = Executors.newFixedThreadPool(numberOfThreads);
+        CountDownLatch latch = new CountDownLatch(numberOfThreads);
+
+        for (int i = 0; i < numberOfThreads; i++) {
+            final int threadId = i;
+            service.submit(() -> {
+                try {
+                    assertTrue(handler.connect());
+                    assertTrue(handler.isConnected());
+                    assertTrue(handler.beginTransaction());
+
+                    Map<String, Object> values = new HashMap<>();
+                    values.put("ID", threadId);
+                    values.put("THREAD_NAME", "Thread-" + threadId);
+                    assertTrue(handler.insertRecord("multithread_test", values));
+
+                    List<Map<String, Object>> results = handler.queryRecords("multithread_test", null, "ID = ?", threadId);
+                    assertEquals(1, results.size());
+                    assertEquals("Thread-" + threadId, results.get(0).get("THREAD_NAME"));
+
+                    assertTrue(handler.commitTransaction());
+                    assertTrue(handler.disconnect());
+                    assertFalse(handler.isConnected());
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        service.shutdown();
+
+        // Verify all records are in the database from the main thread
+        handler.connect();
+        List<Map<String, Object>> allResults = handler.queryRecords("multithread_test", null, null);
+        assertEquals(numberOfThreads, allResults.size());
+        handler.disconnect();
+        LOGGER.info("Multithreaded test for " + handler.getDatabaseType() + " completed successfully.");
+    }
+
+    private void testTables(ThreadSafeJDBCHandler handler) {
         handler.connect();
         assertThat(handler.isConnected())
                 .isTrue();
@@ -232,3 +306,4 @@ public class JDBCHandlerTest {
         LOGGER.info("Testing table deletion, insertion, and querying for " + handler.getDatabaseType() + " completed successfully.");
     }
 }
+

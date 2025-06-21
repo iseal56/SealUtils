@@ -6,7 +6,7 @@
 
     <groupId>dev.iseal</groupId>
     <artifactId>SealUtils</artifactId>
-    <version>1.0.1.1</version>
+    <version>1.0.1.2</version>
     <description>A purely java lib to handle some stuff in my programs</description>
 
     <properties>
