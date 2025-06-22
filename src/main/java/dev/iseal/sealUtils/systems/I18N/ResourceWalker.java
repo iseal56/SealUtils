@@ -1,5 +1,6 @@
 package dev.iseal.sealUtils.systems.I18N;
 
+import dev.iseal.sealUtils.Interfaces.SealLogger;
 import dev.iseal.sealUtils.SealUtils;
 import dev.iseal.sealUtils.utils.ExceptionHandler;
 
@@ -12,7 +13,6 @@ import java.nio.file.*;
 import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 public class ResourceWalker {
@@ -30,7 +30,7 @@ public class ResourceWalker {
      */
     public static final Pattern GLOB_MESSAGES = Pattern.compile("Messages_[a-z]{2}_[A-Z]{2}\\.properties");
 
-    private static final Logger log = SealUtils.getLogger();
+    private static final SealLogger log = SealUtils.getLogger();
 
     /**
      *

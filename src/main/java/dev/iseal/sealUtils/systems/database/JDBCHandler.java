@@ -1,5 +1,6 @@
 package dev.iseal.sealUtils.systems.database;
 
+import dev.iseal.sealUtils.Interfaces.SealLogger;
 import dev.iseal.sealUtils.SealUtils;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -9,8 +10,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * A JDBC handler class that abstracts database operations.
@@ -24,7 +23,7 @@ public class JDBCHandler {
     // assuming they are sanitized and do not contain special characters.
     // FIXME: Consider quoting table names in SQL statements to prevent SQL injection and handle special characters.
 
-    private final Logger LOGGER;
+    private final SealLogger LOGGER;
 
     private String jdbcUrl;
     private String username;
@@ -76,7 +75,7 @@ public class JDBCHandler {
             dataSource = new HikariDataSource(config);
             return true;
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to initialize connection pool", e);
+            LOGGER.error("Failed to initialize connection pool", e);
             if (strictMode) throw new RuntimeException(e);
             return false;
         }
@@ -113,7 +112,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Error checking connection status: " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Error checking connection status", e);
+                LOGGER.error("Error checking connection status", e);
             return false;
         }
     }
@@ -134,7 +133,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to create database: " + databaseName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to create database: " + databaseName, e);
+                LOGGER.error("Failed to create database: " + databaseName, e);
             return false;
         }
     }
@@ -155,7 +154,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to delete database: " + databaseName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to delete database: " + databaseName, e);
+                LOGGER.error("Failed to delete database: " + databaseName, e);
             return false;
         }
     }
@@ -189,7 +188,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to create table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to create table: " + tableName, e);
+                LOGGER.error("Failed to create table: " + tableName, e);
             return false;
         }
     }
@@ -224,7 +223,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to create table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to create table: " + tableName, e);
+                LOGGER.error("Failed to create table: " + tableName, e);
             return false;
         }
     }
@@ -237,7 +236,7 @@ public class JDBCHandler {
      */
     public boolean tableExists(String tableName) {
         if (dataSource == null) {
-            LOGGER.log(Level.WARNING, "Cannot check table existence, dataSource is null.");
+            LOGGER.warn("Cannot check table existence, dataSource is null.");
             if (strictMode) {
                 throw new IllegalStateException("DataSource is not initialized.");
             }
@@ -265,7 +264,7 @@ public class JDBCHandler {
             if (strictMode) {
                 throw new RuntimeException("Error checking if table exists: " + tableName + ": " + e.getMessage(), e);
             } else {
-                LOGGER.log(Level.SEVERE, "Error checking if table exists: " + tableName, e);
+                LOGGER.error("Error checking if table exists: " + tableName, e);
             }
             return false;
         }
@@ -287,7 +286,7 @@ public class JDBCHandler {
      */
     public boolean dropTable(String tableName) {
         if (dataSource == null) {
-            LOGGER.log(Level.WARNING, "Cannot drop table '" + tableName + "', dataSource is null.");
+            LOGGER.warn("Cannot drop table '" + tableName + "', dataSource is null.");
             if (strictMode) {
                 throw new IllegalStateException("DataSource is not initialized.");
             }
@@ -317,7 +316,7 @@ public class JDBCHandler {
             if (strictMode) {
                 throw new RuntimeException("Failed to drop table '" + tableName + "': " + e.getMessage(), e);
             } else {
-                LOGGER.log(Level.SEVERE, "Failed to drop table '" + tableName + "'. SQL: " + sql, e);
+                LOGGER.error("Failed to drop table '" + tableName + "'. SQL: " + sql, e);
             }
             return false;
         }
@@ -367,7 +366,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to insert record into table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to insert record into table: " + tableName + " with SQL: " + sql, e);
+                LOGGER.error("Failed to insert record into table: " + tableName + " with SQL: " + sql, e);
             return false;
         }
     }
@@ -406,7 +405,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to insert record into table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to insert record into table: " + tableName + " with SQL: " + sql, e);
+                LOGGER.error("Failed to insert record into table: " + tableName + " with SQL: " + sql, e);
             return false;
         }
     }
@@ -471,7 +470,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to query records from table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to query records from table: " + tableName, e);
+                LOGGER.error("Failed to query records from table: " + tableName, e);
         }
 
         return results;
@@ -524,7 +523,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to query records from table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to query records from table: " + tableName, e);
+                LOGGER.error("Failed to query records from table: " + tableName, e);
         }
         return results;
     }
@@ -590,49 +589,6 @@ public class JDBCHandler {
     }
 
     /**
-     * Checks if the required database driver is available based on the JDBC URL.
-     *
-     * @throws SQLException if the appropriate driver can't be found
-     */
-    private void checkDriverAvailability() throws SQLException { //NOPMD - testing
-        if (jdbcUrl == null || jdbcUrl.isEmpty()) {
-            throw new SQLException("JDBC URL is not set");
-        }
-
-        String driverClass;
-        String dependencyInfo;
-
-        if (jdbcUrl.startsWith("jdbc:sqlite:")) {
-            driverClass = "org.sqlite.JDBC";
-            dependencyInfo = "org.xerial:sqlite-jdbc";
-        } else if (jdbcUrl.startsWith("jdbc:h2:")) {
-            driverClass = "org.h2.Driver";
-            dependencyInfo = "com.h2database:h2";
-        } else if (jdbcUrl.startsWith("jdbc:hsqldb:")) {
-            driverClass = "org.hsqldb.jdbc.JDBCDriver";
-            dependencyInfo = "org.hsqldb:hsqldb";
-        } else if (jdbcUrl.startsWith("jdbc:mysql:")) {
-            driverClass = "com.mysql.cj.jdbc.Driver";
-            dependencyInfo = "mysql:mysql-connector-java";
-        } else if (jdbcUrl.startsWith("jdbc:postgresql:")) {
-            driverClass = "org.postgresql.Driver";
-            dependencyInfo = "org.postgresql:postgresql";
-        } else if (jdbcUrl.startsWith("jdbc:oracle:thin:@")) {
-            driverClass = "oracle.jdbc.OracleDriver";
-            dependencyInfo = "com.oracle.database.jdbc:ojdbc8";
-        } else {
-            throw new SQLException("Unsupported database type in URL: " + jdbcUrl);
-        }
-
-        try {
-            Class.forName(driverClass);
-        } catch (ClassNotFoundException e) {
-            throw new SQLException("Database driver not found: " + driverClass +
-                    ". Please add the following dependency to your project: " + dependencyInfo);
-        }
-    }
-
-    /**
      * Updates records in a table.
      *
      * @param tableName The name of the table
@@ -683,7 +639,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to update records in table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to update records in table: " + tableName, e);
+                LOGGER.error("Failed to update records in table: " + tableName, e);
             return false;
         }
     }
@@ -727,7 +683,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to update records in table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to update records in table: " + tableName, e);
+                LOGGER.error("Failed to update records in table: " + tableName, e);
             return false;
         }
     }
@@ -760,7 +716,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to delete records from table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to delete records from table: " + tableName, e);
+                LOGGER.error("Failed to delete records from table: " + tableName, e);
             return false;
         }
     }
@@ -788,7 +744,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to delete records from table: " + tableName + ": " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to delete records from table: " + tableName, e);
+                LOGGER.error("Failed to delete records from table: " + tableName, e);
             return false;
         }
     }
@@ -806,7 +762,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to begin transaction: " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to begin transaction", e);
+                LOGGER.error("Failed to begin transaction", e);
             return false;
         }
     }
@@ -825,7 +781,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to commit transaction: " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to commit transaction", e);
+                LOGGER.error("Failed to commit transaction", e);
             return false;
         }
     }
@@ -844,7 +800,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to rollback transaction: " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to rollback transaction", e);
+                LOGGER.error("Failed to rollback transaction", e);
             return false;
         }
     }
@@ -862,7 +818,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to begin transaction: " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to begin transaction", e);
+                LOGGER.error("Failed to begin transaction", e);
             return false;
         }
     }
@@ -881,7 +837,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to commit transaction: " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to commit transaction", e);
+                LOGGER.error("Failed to commit transaction", e);
             return false;
         }
     }
@@ -900,7 +856,7 @@ public class JDBCHandler {
             if (strictMode)
                 throw new RuntimeException("Failed to rollback transaction: " + e.getMessage(), e);
             else
-                LOGGER.log(Level.SEVERE, "Failed to rollback transaction", e);
+                LOGGER.error("Failed to rollback transaction", e);
             return false;
         }
     }

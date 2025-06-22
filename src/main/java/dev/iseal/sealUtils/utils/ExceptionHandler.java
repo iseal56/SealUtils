@@ -1,6 +1,7 @@
 package dev.iseal.sealUtils.utils;
 
 import dev.iseal.sealUtils.Interfaces.Dumpable;
+import dev.iseal.sealUtils.Interfaces.SealLogger;
 import dev.iseal.sealUtils.SealUtils;
 
 import java.util.ArrayList;
@@ -8,12 +9,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class ExceptionHandler {
 
     private static ExceptionHandler instance;
-    private final Logger log = SealUtils.getLogger();
+    private final SealLogger log = SealUtils.getLogger();
     private ArrayList<String> currentLog = new ArrayList<>();
 
     // class, instance

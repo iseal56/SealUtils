@@ -1,6 +1,7 @@
 package dev.iseal.sealUtils.systems.I18N;
 
 import dev.iseal.sealUtils.Interfaces.Dumpable;
+import dev.iseal.sealUtils.Interfaces.SealLogger;
 import dev.iseal.sealUtils.SealUtils;
 
 import java.io.*;
@@ -9,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
-import java.util.logging.Logger;
 
 import static dev.iseal.sealUtils.SealUtils.isDebug;
 
@@ -30,7 +30,7 @@ public class I18N implements Dumpable {
     private static final HashMap<String, ResourceBundle> selectedBundles = new HashMap<>();
 
     public void unpackAllLanguages(Class<?> fromClass, File extractToFolder) throws URISyntaxException {
-        Logger logger = SealUtils.getLogger();
+        SealLogger logger = SealUtils.getLogger();
         ResourceWalker.getInstance().walk(fromClass, "languages", (inputStream, fileName) -> {
             File targetFile = new File(extractToFolder, "languages/" + fileName);
             if (isDebug())
@@ -49,7 +49,7 @@ public class I18N implements Dumpable {
                 try (InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                     newResourceBundle = new PropertyResourceBundle(reader);
                 } catch (Exception e) {
-                    logger.severe("[SealUtils] Exception while loading resource file: " + e.getMessage());
+                    logger.error("[SealUtils] Exception while loading resource file: " + e.getMessage());
                     throw new RuntimeException(e);
                 }
 
@@ -78,7 +78,7 @@ public class I18N implements Dumpable {
     }
 
     public void setBundle(Class<?> fromClass, File extractToFolder, String localeLang, String localeCountry) throws IOException {
-        Logger logger = SealUtils.getLogger();
+        SealLogger logger = SealUtils.getLogger();
         PropertyResourceBundle resourceBundle = null;
 
         // unpack all languages and check updates
@@ -98,7 +98,7 @@ public class I18N implements Dumpable {
         File targetFile = new File(extractToFolder, "languages/" + fileName);
 
         if (!targetFile.exists()) {
-            logger.severe("[SealUtils] Target file does not exist, loading default en_US file");
+            logger.error("[SealUtils] Target file does not exist, loading default en_US file");
             fileName = "Messages_en_US.properties";
             targetFile = new File(extractToFolder, "languages/" + fileName);
         }
