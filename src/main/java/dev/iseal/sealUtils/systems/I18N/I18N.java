@@ -89,7 +89,7 @@ public class I18N implements Dumpable {
         }
 
         // get caller class
-        Class<?> mainClass = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
+        String packageKey = fromClass.getPackageName().split("\\.")[2];
         String fileName = "Messages_" + localeLang + "_" + localeCountry + ".properties";
         if (isDebug())
             logger.info("[SealUtils] File name constructed: " + fileName);
@@ -107,7 +107,7 @@ public class I18N implements Dumpable {
 
         resourceBundle = new PropertyResourceBundle(new FileInputStream(targetFile));
         logger.info("[SealUtils] Loaded language file: " + fileName + " v" + resourceBundle.getString("BUNDLE_VERSION"));
-        selectedBundles.put(mainClass.getPackageName().split("\\.")[2], resourceBundle);
+        selectedBundles.put(packageKey, resourceBundle);
     }
 
     private void checkAndApplyUpdates(PropertyResourceBundle newResourceBundle, PropertyResourceBundle oldResourceBundle, File targetFile) {
