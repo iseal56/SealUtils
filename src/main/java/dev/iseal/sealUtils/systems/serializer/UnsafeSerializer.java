@@ -15,18 +15,6 @@ import java.util.logging.Level;
 
 public class UnsafeSerializer {
 
-    private static Kryo kryo;
-
-    // housekeeping
-    private static void checkKryo() {
-        if (kryo != null) {
-            return;
-        }
-        kryo = new Kryo();
-        ExtraKryoCodecs.init(kryo, SealUtils.isDebug());
-        kryo.setRegistrationRequired(false);
-    }
-
     /**
      * Serialize objects to a byte array
      *
@@ -34,7 +22,7 @@ public class UnsafeSerializer {
      * @return The byte array containing the serialized objects
      *
      */
-    public static byte[] serialize(Object... objects) {
+    public static byte[] serialize(Kryo kryo, Object... objects) {
         // if no objects are passed, return an empty byte array
         if (objects.length == 0) {
             return new byte[0];
@@ -42,17 +30,13 @@ public class UnsafeSerializer {
         // create a new output stream && initialize kryo output on it
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         Output output = new Output(outputStream);
-        checkKryo();
         // write all objects to the output stream
         for (Object object : objects) {
             kryo.writeObject(output, object);
         }
         try {
             // flush the output stream and return the byte array
-            output.flush();
             output.close();
-            outputStream.flush();
-            outputStream.close();
             return outputStream.toByteArray();
         } catch (Exception e) {
             ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, "FAILED_TO_SERIALIZE_OBJECTS");
@@ -68,14 +52,13 @@ public class UnsafeSerializer {
      * @param deserializeTo The objects to deserialize to
      * @return The deserialized objects or null if deserialization fails
      */
-    public static Object[] deserialize(byte[] data, Class<?>... deserializeTo) {
+    public static Object[] deserialize(Kryo kryo, byte[] data, Class<?>... deserializeTo) {
         if (data.length == 0) {
             return null;
         }
         ArrayList<Object> decodedObjects = new ArrayList<>();
         ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
         Input input = new Input(inputStream);
-        checkKryo();
         for (Class<?> clazz : deserializeTo) {
             try {
                 decodedObjects.add(kryo.readObject(input, clazz));
@@ -97,8 +80,7 @@ public class UnsafeSerializer {
      * @param serializer The serializer to use
      * @param id The id to register the class with
      */
-    public static void registerClass(Class<?> clazz, Serializer<?> serializer, int id) {
-        checkKryo();
+    public static void registerClass(Kryo kryo, Class<?> clazz, Serializer<?> serializer, int id) {
         if (kryo.getRegistration(clazz) != null && kryo.getRegistration(id) != null) {
             return;
         }
@@ -113,8 +95,7 @@ public class UnsafeSerializer {
      * @param clazz The class to register
      * @param id The id to register the class with
      */
-    public static void registerClass(Class<?> clazz, int id) {
-        checkKryo();
+    public static void registerClass(Kryo kryo, Class<?> clazz, int id) {
         if (kryo.getRegistration(clazz) != null && kryo.getRegistration(id) != null) {
             return;
         }
@@ -128,8 +109,7 @@ public class UnsafeSerializer {
      *
      * @param clazz The class to register
      */
-    public static void registerClass(Class<?> clazz) {
-        checkKryo();
+    public static void registerClass(Kryo kryo, Class<?> clazz) {
         if (kryo.getRegistration(clazz) != null) {
             return;
         }

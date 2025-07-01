@@ -229,6 +229,58 @@ public class JDBCHandler {
     }
 
     /**
+     * Retrieves a list of all table names in the database.
+     *
+     * @return A list of table names
+     */
+    public List<String> getTableNames() {
+        List<String> tableNames = new ArrayList<>();
+        try (Connection conn = getConnection()) {
+            DatabaseMetaData
+                    metaData = conn.getMetaData();
+            try (ResultSet rs = metaData.getTables(null, null, "%", new String[] {"TABLE"})) {
+                while (rs.next()) {
+                    String tableName = rs.getString("TABLE_NAME");
+                    tableNames.add(tableName);
+                }
+            }
+        } catch (SQLException e) {
+            if (strictMode) {
+                throw new RuntimeException("Error retrieving table names: " + e.getMessage(), e);
+            } else {
+                LOGGER.error("Error retrieving table names", e);
+            }
+        }
+        return tableNames;
+    }
+
+    /**
+     * Retrieves a list of all table names in the database using a provided connection (for transaction support).
+     *
+     * @param conn The connection to use (must be managed by the caller)
+     * @return A list of table names
+     */
+    public List<String> getTableNames(Connection conn) {
+        List<String> tableNames = new ArrayList<>();
+        try {
+            DatabaseMetaData metaData = conn.getMetaData();
+            try (ResultSet rs = metaData.getTables(null, null, "%", new String[]{"TABLE"})) {
+                while (rs.next()) {
+                    String tableName = rs.getString("TABLE_NAME");
+                    tableNames.add(tableName);
+                }
+            }
+        } catch (SQLException e) {
+            if (strictMode) {
+                throw new RuntimeException("Error retrieving table names: " + e.getMessage(), e);
+            } else {
+                LOGGER.error("Error retrieving table names", e);
+            }
+        }
+        return tableNames;
+    }
+
+    /**
      * Tests if a table exists in the database using DatabaseMetaData.
      *
      * @param tableName The name of the table to check

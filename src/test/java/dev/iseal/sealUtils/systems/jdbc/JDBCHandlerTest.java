@@ -15,6 +15,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -230,5 +231,42 @@ public class JDBCHandlerTest {
         // Clean up
         handler.disconnect();
         LOGGER.info("Testing table deletion, insertion, and querying for " + handler.getDatabaseType() + " completed successfully.");
+    }
+
+    @Test
+    void testTableListingAndExistence() {
+        // Create a handler
+        JDBCHandlerBuilder builder = JDBCHandlerBuilder.forSqlite(dbPath)
+                .withCredentials("admin", "password");
+        JDBCHandler handler = builder.build();
+        handler.connect();
+
+        // create tables with random names
+        HashMap<String, String> columns = new HashMap<>();
+        columns.put("ID", "INTEGER PRIMARY KEY");
+        columns.put("NAME", "VARCHAR(255)");
+        if (handler.tableExists("test_table")) {
+            assertTrue(handler.dropTable("test_table"));
+        }
+        assertTrue(handler.createTable("test_table", columns));
+        assertTrue(handler.createTable("another_test_table", columns));
+        assertTrue(handler.createTable("yet_another_table", columns));
+        assertTrue(handler.createTable("test_table_2_electric_boogaloo", columns));
+
+        // List all tables and check if the table is in the list
+        List<String> tables = handler.getTableNames();
+        assertThat(tables)
+                .isNotNull();
+
+        assertEquals(4, tables.size(), "Expected 4 tables, but found: " + tables.size());
+
+        for (String table : tables) {
+            LOGGER.info("Found table: " + table);
+            assertTrue(handler.tableExists(table));
+            assertTrue(handler.dropTable(table));
+        }
+
+        // Clean up
+        handler.disconnect();
     }
 }
