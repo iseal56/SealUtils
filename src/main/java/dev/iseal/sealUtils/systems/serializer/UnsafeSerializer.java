@@ -39,7 +39,7 @@ public class UnsafeSerializer {
             output.close();
             return outputStream.toByteArray();
         } catch (Exception e) {
-            ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, "FAILED_TO_SERIALIZE_OBJECTS");
+            ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, SealUtils.VERSION, "FAILED_TO_SERIALIZE_OBJECTS");
             return null;
         }
     }

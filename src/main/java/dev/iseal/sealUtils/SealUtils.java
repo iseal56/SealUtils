@@ -3,13 +3,17 @@ package dev.iseal.sealUtils;
 import dev.iseal.sealUtils.Interfaces.SealLogger;
 import dev.iseal.sealUtils.systems.sealLogger.JavaUtilLogger;
 import dev.iseal.sealUtils.systems.sealLogger.SLF4JLogger;
+import dev.iseal.sealUtils.utils.ExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Objects;
 
 public class SealUtils {
 
     private static boolean debugMode = false;
     private static SealLogger log;
+    public static final String VERSION = "1.0.1.4-DEV2";
 
     static {
         try {
@@ -27,8 +31,9 @@ public class SealUtils {
      *
      * @param debugM true to enable debug mode, false to disable it.
      */
-    public static void init(boolean debugM) {
+    public static void init(boolean debugM, String version) {
         debugMode = debugM;
+        ExceptionHandler.getInstance().setVersion(StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass(), version);
     }
 
     /**

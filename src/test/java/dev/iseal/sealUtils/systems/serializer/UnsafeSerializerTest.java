@@ -2,9 +2,11 @@ package dev.iseal.sealUtils.systems.serializer;
 
 import com.esotericsoftware.kryo.kryo5.Kryo;
 import dev.iseal.sealUtils.SealUtils;
+import dev.iseal.sealUtils.systems.sealLogger.SLF4JLogger;
 import dev.iseal.sealUtils.utils.GlobalUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
@@ -16,12 +18,11 @@ public class UnsafeSerializerTest {
 
     @BeforeAll
     public static void setup() {
-        SealUtils.init(true);
+        SealUtils.init(true, "1.0.0.0-TESTVERSION");
     }
 
     @Test
     public void trySerializingStrings() {
-        SealUtils.init(true);
         for (int i = 0; i < 100; i++) {
             String testString = GlobalUtils.generateRandomString(i);
             byte[] serializedData = UnsafeSerializer.serialize(kryo, testString);
@@ -38,7 +39,6 @@ public class UnsafeSerializerTest {
 
     @Test
     void trySerializingInts() {
-        SealUtils.init(true);
         for (int i = 0; i < 100; i++) {
             byte[] serializedData = UnsafeSerializer.serialize(kryo, i);
             assertThat(serializedData)
@@ -54,7 +54,6 @@ public class UnsafeSerializerTest {
 
     @Test
     void trySerializingMultipleItems() {
-        SealUtils.init(true);
         for (int i = 0; i < 100; i++) {
             String testString = GlobalUtils.generateRandomString(i);
             int testInt = i;

@@ -6,8 +6,19 @@
 
     <groupId>dev.iseal</groupId>
     <artifactId>SealUtils</artifactId>
-    <version>1.0.1.4-DEV2</version>
+    <version>1.0.1.4</version>
     <description>A purely java lib to handle some stuff in my programs</description>
+
+    <distributionManagement>
+        <repository>
+            <id>iseal.dev</id>
+            <url>https://maven.iseal.dev/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>iseal.dev</id>
+            <url>https://maven.iseal.dev/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -21,17 +32,8 @@
         <dependency>
             <groupId>dev.iseal</groupId>
             <artifactId>ExtraKryoCodecs</artifactId>
-            <version>1.0.0.0-DEV25</version>
+            <version>1.1.0.2</version>
         </dependency>
-
-        <!-- actual code dependencies -->
-        <!--
-        <dependency>
-            <groupId>com.github.ISeal-plugin-developement</groupId>
-            <artifactId>ExtraKryoCodecs</artifactId>
-            <version>1.0.0.0-DEV24-c5a1f2b1</version>
-            <scope>compile</scope>
-        </dependency>-->
 
         <dependency>
             <groupId>org.reflections</groupId>
@@ -80,6 +82,7 @@
             <groupId>com.oracle.database.jdbc</groupId>
             <artifactId>ojdbc11</artifactId>
             <version>23.8.0.25.04</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- tests -->
@@ -193,6 +196,10 @@
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
+        </repository>
+        <repository>
+            <id>iseal.dev</id>
+            <url>https://maven.iseal.dev/</url>
         </repository>
     </repositories>
 

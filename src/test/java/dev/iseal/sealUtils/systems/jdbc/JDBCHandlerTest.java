@@ -1,5 +1,6 @@
 package dev.iseal.sealUtils.systems.jdbc;
 
+import dev.iseal.sealUtils.SealUtils;
 import dev.iseal.sealUtils.systems.database.JDBCHandler;
 import dev.iseal.sealUtils.systems.database.JDBCHandlerBuilder;
 import dev.iseal.sealUtils.utils.ExceptionHandler;
@@ -49,7 +50,7 @@ public class JDBCHandlerTest {
                     }
                 });
             } catch (IOException e) {
-                ExceptionHandler.getInstance().dealWithException(e, Level.SEVERE, "FAILED_TO_DELETE_DB_DIR");
+                ExceptionHandler.getInstance().dealWithException(e, Level.SEVERE,  SealUtils.VERSION, "FAILED_TO_DELETE_DB_DIR");
                 fail("Failed to delete old db dir: " + e.getMessage());
             }
         }
@@ -83,7 +84,7 @@ public class JDBCHandlerTest {
                     }
                 });
             } catch (IOException e) {
-                ExceptionHandler.getInstance().dealWithException(e, Level.SEVERE, "FAILED_TO_DELETE_DB_DIR");
+                ExceptionHandler.getInstance().dealWithException(e, Level.SEVERE,  SealUtils.VERSION, "FAILED_TO_DELETE_DB_DIR");
                 fail("Failed to delete old db dir: " + e.getMessage());
             }
         }
@@ -92,7 +93,7 @@ public class JDBCHandlerTest {
         try {
             Files.createDirectories(dbDirPath);
         } catch (IOException e) {
-            ExceptionHandler.getInstance().dealWithException(e, Level.SEVERE, "FAILED_TO_CREATE_DB_DIR");
+            ExceptionHandler.getInstance().dealWithException(e, Level.SEVERE,  SealUtils.VERSION, "FAILED_TO_CREATE_DB_DIR");
             fail("Failed to create db dir: " + e.getMessage());
         }
 

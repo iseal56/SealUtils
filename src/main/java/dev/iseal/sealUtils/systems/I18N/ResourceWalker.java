@@ -57,7 +57,7 @@ public class ResourceWalker {
                                 try (InputStream is = Files.newInputStream(p)) {
                                     c.accept(is, p.getFileName().toString());
                                 } catch (IOException e) {
-                                    ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, "RESOURCE_WALKER_FAILED", log);
+                                    ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, "RESOURCE_WALKER_FAILED", SealUtils.VERSION, log);
                                 }
                             });
                 }
@@ -70,12 +70,12 @@ public class ResourceWalker {
                             try (InputStream is = Files.newInputStream(p)) {
                                 c.accept(is, p.getFileName().toString());
                             } catch (IOException e) {
-                                ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, "RESOURCE_WALKER_FAILED", log);
+                                ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, "RESOURCE_WALKER_FAILED", SealUtils.VERSION, log);
                             }
                         });
             }
         } catch (IOException | URISyntaxException e) {
-            ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, "RESOURCE_WALKER_FAILED", log);
+            ExceptionHandler.getInstance().dealWithException(e, Level.WARNING, "RESOURCE_WALKER_FAILED", SealUtils.VERSION, log);
         }
     }
 }
