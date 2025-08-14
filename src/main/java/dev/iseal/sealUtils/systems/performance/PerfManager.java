@@ -1,8 +1,7 @@
-package dev.iseal.sealUtils.utils;
+package dev.iseal.sealUtils.systems.performance;
 
 import dev.iseal.sealUtils.SealUtils;
 import dev.iseal.sealUtils.Interfaces.SealLogger;
-import dev.iseal.sealUtils.systems.analytics.AnalyticsManager;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

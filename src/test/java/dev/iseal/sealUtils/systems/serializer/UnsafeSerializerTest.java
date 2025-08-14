@@ -1,6 +1,6 @@
 package dev.iseal.sealUtils.systems.serializer;
 
-import com.esotericsoftware.kryo.kryo5.Kryo;
+import com.esotericsoftware.kryo.Kryo;
 import dev.iseal.sealUtils.SealUtils;
 import dev.iseal.sealUtils.systems.sealLogger.SLF4JLogger;
 import dev.iseal.sealUtils.utils.GlobalUtils;

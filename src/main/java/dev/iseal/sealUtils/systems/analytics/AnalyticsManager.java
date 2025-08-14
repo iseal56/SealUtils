@@ -1,6 +1,6 @@
 package dev.iseal.sealUtils.systems.analytics;
 
-import com.esotericsoftware.kryo.kryo5.Kryo;
+import com.esotericsoftware.kryo.Kryo;
 import dev.iseal.ExtraKryoCodecs.Enums.Serializer;
 import dev.iseal.ExtraKryoCodecs.Enums.SerializersEnums.AnalyticsAPI.PerformanceAnalyticsSerializers;
 import dev.iseal.ExtraKryoCodecs.ExtraKryoCodecs;
@@ -11,7 +11,7 @@ import dev.iseal.sealUtils.SealUtils;
 import dev.iseal.sealUtils.systems.serializer.UnsafeSerializer;
 import dev.iseal.sealUtils.utils.ExceptionHandler;
 import dev.iseal.sealUtils.utils.Pair;
-import dev.iseal.sealUtils.utils.PerfManager;
+import dev.iseal.sealUtils.systems.performance.PerfManager;
 
 import java.io.IOException;
 import java.net.URI;
