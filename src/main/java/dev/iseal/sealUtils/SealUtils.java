@@ -7,8 +7,6 @@ import dev.iseal.sealUtils.utils.ExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
-
 public class SealUtils {
 
     private static boolean debugMode = false;
