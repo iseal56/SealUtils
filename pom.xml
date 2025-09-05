@@ -199,7 +199,7 @@
         </repository>
         <repository>
             <id>iseal.dev</id>
-            <url>https://maven.iseal.dev/</url>
+            <url>https://maven.iseal.dev/maven-releases/</url>
         </repository>
     </repositories>
 
